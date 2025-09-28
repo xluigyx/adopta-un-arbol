@@ -9,28 +9,61 @@ import { TreePine, Shield, Wrench, User, Eye, EyeOff } from 'lucide-react';
 
 interface LoginPageProps {
   onNavigate: (view: string) => void;
-  onLogin: (userType: 'user' | 'admin' | 'technician', credentials: { email: string; password: string }) => void;
 }
 
-export function LoginPage({ onNavigate, onLogin }: LoginPageProps) {
+export function LoginPage({ onNavigate }: LoginPageProps) {
   const [selectedTab, setSelectedTab] = useState('user');
   const [showPassword, setShowPassword] = useState(false);
   const [credentials, setCredentials] = useState({ email: '', password: '' });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin(selectedTab as 'user' | 'admin' | 'technician', credentials);
-  };
 
-  const handleQuickLogin = (userType: 'user' | 'admin' | 'technician') => {
-    const quickCredentials = {
-      user: { email: 'maria@email.com', password: 'demo123' },
-      admin: { email: 'admin@arbolitos.org', password: 'admin123' },
-      technician: { email: 'juan@arbolitos.org', password: 'tech123' }
-    };
-    
-    setCredentials(quickCredentials[userType]);
-    onLogin(userType, quickCredentials[userType]);
+    try {
+      const res = await fetch("http://localhost:4000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: credentials.email,
+          password: credentials.password
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.msg || "Error en login");
+        return;
+      }
+
+      // 🚨 Validar si el rol del usuario coincide con la pestaña seleccionada
+      if (
+        (selectedTab === "user" && data.usuario.rol !== "Cliente") ||
+        (selectedTab === "admin" && data.usuario.rol !== "Administrador") ||
+        (selectedTab === "technician" && data.usuario.rol !== "Técnico")
+      ) {
+        alert(`⚠️ Este usuario no tiene permiso para iniciar sesión como ${selectedTab}`);
+        return;
+      }
+
+      // Guardar token y rol
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("rol", data.usuario.rol);
+
+      alert(`Bienvenido ${data.usuario.nombre} (${data.usuario.rol})`);
+
+      // Redirigir según rol
+      if (data.usuario.rol === "Administrador") {
+        onNavigate("AdminDashboard");
+      } else if (data.usuario.rol === "Técnico") {
+        onNavigate("technicianView");
+      } else {
+        onNavigate("MapView");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error de conexión con el servidor");
+    }
   };
 
   const userTypes = {
@@ -39,24 +72,21 @@ export function LoginPage({ onNavigate, onLogin }: LoginPageProps) {
       title: 'Usuario',
       description: 'Accede para adoptar y cuidar árboles',
       color: 'text-green-600',
-      bgColor: 'bg-green-50',
-      demoUser: 'María García (Usuario Regular)'
+      bgColor: 'bg-green-50'
     },
     admin: {
       icon: Shield,
       title: 'Administrador',
       description: 'Panel de administración completo',
       color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
-      demoUser: 'Admin Usuario (Administrador)'
+      bgColor: 'bg-blue-50'
     },
     technician: {
       icon: Wrench,
       title: 'Técnico',
       description: 'Gestión de mantenimiento y tareas',
       color: 'text-orange-600',
-      bgColor: 'bg-orange-50',
-      demoUser: 'Juan Técnico (Técnico de Campo)'
+      bgColor: 'bg-orange-50'
     }
   };
 
@@ -88,50 +118,27 @@ export function LoginPage({ onNavigate, onLogin }: LoginPageProps) {
           <CardContent>
             <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
               <TabsList className="grid w-full grid-cols-3 mb-6">
-                <TabsTrigger value="user" className="text-xs sm:text-sm">
-                  <User className="h-4 w-4 mr-1" />
-                  Usuario
-                </TabsTrigger>
-                <TabsTrigger value="admin" className="text-xs sm:text-sm">
-                  <Shield className="h-4 w-4 mr-1" />
-                  Admin
-                </TabsTrigger>
-                <TabsTrigger value="technician" className="text-xs sm:text-sm">
-                  <Wrench className="h-4 w-4 mr-1" />
-                  Técnico
-                </TabsTrigger>
+                <TabsTrigger value="user"><User className="h-4 w-4 mr-1" />Usuario</TabsTrigger>
+                <TabsTrigger value="admin"><Shield className="h-4 w-4 mr-1" />Admin</TabsTrigger>
+                <TabsTrigger value="technician"><Wrench className="h-4 w-4 mr-1" />Técnico</TabsTrigger>
               </TabsList>
 
               {Object.entries(userTypes).map(([type, config]) => (
                 <TabsContent key={type} value={type} className="space-y-4">
-                  {/* User Type Info */}
                   <div className={`${config.bgColor} p-4 rounded-lg border`}>
                     <div className="flex items-center mb-2">
                       <config.icon className={`h-5 w-5 ${config.color} mr-2`} />
                       <h3 className={`font-semibold ${config.color}`}>{config.title}</h3>
                     </div>
                     <p className="text-sm text-gray-600 mb-3">{config.description}</p>
-                    
-                    {/* Demo Login Button */}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleQuickLogin(type as 'user' | 'admin' | 'technician')}
-                      className="w-full"
-                    >
-                      <span className="text-xs">Acceso rápido como: {config.demoUser}</span>
-                    </Button>
                   </div>
 
-                  {/* Login Form */}
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="email">Correo electrónico</Label>
                       <Input
                         id="email"
                         type="email"
-                        placeholder="tu@email.com"
                         value={credentials.email}
                         onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
                         required
@@ -144,7 +151,6 @@ export function LoginPage({ onNavigate, onLogin }: LoginPageProps) {
                         <Input
                           id="password"
                           type={showPassword ? 'text' : 'password'}
-                          placeholder="••••••••"
                           value={credentials.password}
                           onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
                           required
@@ -170,41 +176,13 @@ export function LoginPage({ onNavigate, onLogin }: LoginPageProps) {
 
             <Separator className="my-6" />
 
-            {/* Additional Options */}
-            <div className="space-y-3 text-center">
-              <Button
-                variant="link"
-                className="text-sm text-gray-600 hover:text-green-600"
-                onClick={() => onNavigate('register')}
-              >
+            <div className="text-center">
+              <Button variant="link" onClick={() => onNavigate('register')}>
                 ¿No tienes cuenta? Regístrate aquí
-              </Button>
-              
-              <div className="text-xs text-gray-500">
-                <p>¿Olvidaste tu contraseña?</p>
-                <Button variant="link" className="text-xs p-0 h-auto text-green-600">
-                  Recuperar contraseña
-                </Button>
-              </div>
-            </div>
-
-            {/* Back to Home */}
-            <div className="mt-6 pt-4 border-t">
-              <Button
-                variant="ghost"
-                onClick={() => onNavigate('home')}
-                className="w-full text-gray-600 hover:text-gray-900"
-              >
-                ← Volver al inicio
               </Button>
             </div>
           </CardContent>
         </Card>
-
-        {/* Footer Info */}
-        <div className="mt-6 text-center text-xs text-gray-500">
-          <p>Demo - Usa "Acceso rápido" para probar diferentes roles</p>
-        </div>
       </div>
     </div>
   );

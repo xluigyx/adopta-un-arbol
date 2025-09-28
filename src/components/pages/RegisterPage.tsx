@@ -9,10 +9,9 @@ import { TreePine, User, Eye, EyeOff, MapPin, Phone, Calendar } from 'lucide-rea
 
 interface RegisterPageProps {
   onNavigate: (view: string) => void;
-  onRegister: (userData: any) => void;
 }
 
-export function RegisterPage({ onNavigate, onRegister }: RegisterPageProps) {
+export function RegisterPage({ onNavigate }: RegisterPageProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -29,9 +28,13 @@ export function RegisterPage({ onNavigate, onRegister }: RegisterPageProps) {
     motivation: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (formData.password !== formData.confirmPassword) {
       alert('Las contraseñas no coinciden');
       return;
@@ -42,25 +45,26 @@ export function RegisterPage({ onNavigate, onRegister }: RegisterPageProps) {
       return;
     }
 
-    // Simulate registration
-    onRegister({
-      name: `${formData.firstName} ${formData.lastName}`,
-      email: formData.email,
-      role: 'user',
-      joinDate: new Date().toISOString().split('T')[0],
-      credits: 10, // Welcome credits
-      profile: {
-        phone: formData.phone,
-        city: formData.city,
-        neighborhood: formData.neighborhood,
-        birthDate: formData.birthDate,
-        motivation: formData.motivation
-      }
-    });
-  };
+    try {
+      const res = await fetch("http://localhost:4000/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData)
+      });
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.msg || "Error al registrar usuario");
+        return;
+      }
+
+      alert("Registro exitoso ✅");
+      onNavigate("login");
+    } catch (err) {
+      console.error(err);
+      alert("Error de conexión con el servidor");
+    }
   };
 
   return (
@@ -90,15 +94,14 @@ export function RegisterPage({ onNavigate, onRegister }: RegisterPageProps) {
 
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Personal Info */}
+              {/* Nombre y Apellido */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">Nombre</Label>
                   <Input
                     id="firstName"
-                    placeholder="María"
                     value={formData.firstName}
-                    onChange={(e) => handleInputChange('firstName', e.target.value)}
+                    onChange={(e) => handleInputChange("firstName", e.target.value)}
                     required
                   />
                 </div>
@@ -106,27 +109,26 @@ export function RegisterPage({ onNavigate, onRegister }: RegisterPageProps) {
                   <Label htmlFor="lastName">Apellido</Label>
                   <Input
                     id="lastName"
-                    placeholder="García"
                     value={formData.lastName}
-                    onChange={(e) => handleInputChange('lastName', e.target.value)}
+                    onChange={(e) => handleInputChange("lastName", e.target.value)}
                     required
                   />
                 </div>
               </div>
 
-              {/* Contact Info */}
+              {/* Email */}
               <div className="space-y-2">
                 <Label htmlFor="email">Correo electrónico</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="maria@email.com"
                   value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  onChange={(e) => handleInputChange("email", e.target.value)}
                   required
                 />
               </div>
 
+              {/* Teléfono */}
               <div className="space-y-2">
                 <Label htmlFor="phone">Teléfono</Label>
                 <div className="relative">
@@ -134,28 +136,32 @@ export function RegisterPage({ onNavigate, onRegister }: RegisterPageProps) {
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="+57 300 123 4567"
+                    placeholder="+591 764 12345"
                     className="pl-10"
                     value={formData.phone}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    onChange={(e) => handleInputChange("phone", e.target.value)}
                   />
                 </div>
               </div>
 
-              {/* Location */}
+              {/* Ciudad y Barrio */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="city">Ciudad</Label>
-                  <Select onValueChange={(value) => handleInputChange('city', value)}>
+                  <Select onValueChange={(value: string) => handleInputChange("city", value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="bogota">Bogotá</SelectItem>
-                      <SelectItem value="medellin">Medellín</SelectItem>
-                      <SelectItem value="cali">Cali</SelectItem>
-                      <SelectItem value="barranquilla">Barranquilla</SelectItem>
-                      <SelectItem value="cartagena">Cartagena</SelectItem>
+                      <SelectItem value="Cochabamba">Cochabamba</SelectItem>
+                      <SelectItem value="La Paz">La Paz</SelectItem>
+                      <SelectItem value="Santa Cruz">Santa Cruz</SelectItem>
+                      <SelectItem value="Oruro">Oruro</SelectItem>
+                      <SelectItem value="Potosí">Potosí</SelectItem>
+                      <SelectItem value="Sucre">Sucre</SelectItem>
+                      <SelectItem value="Tarija">Tarija</SelectItem>
+                      <SelectItem value="Beni">Beni</SelectItem>
+                      <SelectItem value="Pando">Pando</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -168,13 +174,13 @@ export function RegisterPage({ onNavigate, onRegister }: RegisterPageProps) {
                       placeholder="Tu barrio"
                       className="pl-10"
                       value={formData.neighborhood}
-                      onChange={(e) => handleInputChange('neighborhood', e.target.value)}
+                      onChange={(e) => handleInputChange("neighborhood", e.target.value)}
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Birth Date */}
+              {/* Fecha nacimiento */}
               <div className="space-y-2">
                 <Label htmlFor="birthDate">Fecha de nacimiento (opcional)</Label>
                 <div className="relative">
@@ -184,21 +190,21 @@ export function RegisterPage({ onNavigate, onRegister }: RegisterPageProps) {
                     type="date"
                     className="pl-10"
                     value={formData.birthDate}
-                    onChange={(e) => handleInputChange('birthDate', e.target.value)}
+                    onChange={(e) => handleInputChange("birthDate", e.target.value)}
                   />
                 </div>
               </div>
 
-              {/* Password */}
+              {/* Contraseña */}
               <div className="space-y-2">
                 <Label htmlFor="password">Contraseña</Label>
                 <div className="relative">
                   <Input
                     id="password"
-                    type={showPassword ? 'text' : 'password'}
+                    type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     value={formData.password}
-                    onChange={(e) => handleInputChange('password', e.target.value)}
+                    onChange={(e) => handleInputChange("password", e.target.value)}
                     required
                   />
                   <button
@@ -211,15 +217,16 @@ export function RegisterPage({ onNavigate, onRegister }: RegisterPageProps) {
                 </div>
               </div>
 
+              {/* Confirmar contraseña */}
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
                 <div className="relative">
                   <Input
                     id="confirmPassword"
-                    type={showConfirmPassword ? 'text' : 'password'}
+                    type={showConfirmPassword ? "text" : "password"}
                     placeholder="••••••••"
                     value={formData.confirmPassword}
-                    onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                    onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
                     required
                   />
                   <button
@@ -232,23 +239,23 @@ export function RegisterPage({ onNavigate, onRegister }: RegisterPageProps) {
                 </div>
               </div>
 
-              {/* Motivation */}
+              {/* Motivación */}
               <div className="space-y-2">
                 <Label htmlFor="motivation">¿Por qué quieres cuidar árboles? (opcional)</Label>
                 <Input
                   id="motivation"
-                  placeholder="Ej: Quiero contribuir al medio ambiente..."
+                  placeholder="Ej: Quiero ayudar a reforestar Cochabamba..."
                   value={formData.motivation}
-                  onChange={(e) => handleInputChange('motivation', e.target.value)}
+                  onChange={(e) => handleInputChange("motivation", e.target.value)}
                 />
               </div>
 
-              {/* Terms and Conditions */}
+              {/* Términos */}
               <div className="flex items-start space-x-2">
                 <Checkbox
                   id="terms"
                   checked={agreedToTerms}
-                  onCheckedChange={setAgreedToTerms}
+                  onCheckedChange={(val: boolean) => setAgreedToTerms(val)}
                 />
                 <div className="text-sm leading-relaxed">
                   <Label htmlFor="terms" className="cursor-pointer">
@@ -264,7 +271,7 @@ export function RegisterPage({ onNavigate, onRegister }: RegisterPageProps) {
                 </div>
               </div>
 
-              {/* Submit Button */}
+              {/* Submit */}
               <Button 
                 type="submit" 
                 className="w-full bg-green-600 hover:bg-green-700"
@@ -274,41 +281,8 @@ export function RegisterPage({ onNavigate, onRegister }: RegisterPageProps) {
                 Crear mi cuenta
               </Button>
             </form>
-
-            {/* Login Link */}
-            <div className="mt-6 text-center">
-              <Button
-                variant="link"
-                className="text-sm text-gray-600 hover:text-green-600"
-                onClick={() => onNavigate('login')}
-              >
-                ¿Ya tienes cuenta? Inicia sesión aquí
-              </Button>
-            </div>
-
-            {/* Back to Home */}
-            <div className="mt-4 pt-4 border-t">
-              <Button
-                variant="ghost"
-                onClick={() => onNavigate('home')}
-                className="w-full text-gray-600 hover:text-gray-900"
-              >
-                ← Volver al inicio
-              </Button>
-            </div>
           </CardContent>
         </Card>
-
-        {/* Welcome Credits Info */}
-        <div className="mt-6 p-4 bg-green-50 rounded-lg border border-green-200">
-          <div className="text-center">
-            <TreePine className="h-8 w-8 text-green-600 mx-auto mb-2" />
-            <h3 className="font-semibold text-green-800">¡Bienvenido a Arbolitos!</h3>
-            <p className="text-sm text-green-700 mt-1">
-              Recibirás 10 créditos de bienvenida para comenzar a adoptar árboles
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   );
