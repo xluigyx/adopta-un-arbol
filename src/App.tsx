@@ -13,129 +13,129 @@ import { TechnicianView } from './components/pages/TechnicianView';
 import { HistoryPage } from './components/pages/HistoryPage';
 import { StatisticsPage } from './components/pages/StatisticsPage';
 
-// Mock user data - in a real app this would come from authentication
-const mockUsers = {
-  admin: {
-    name: 'Admin Usuario',
-    email: 'admin@arbolitos.org',
-    role: 'admin' as const,
-    joinDate: '2023-01-15',
-    credits: 100
-  },
-  technician: {
-    name: 'Juan Técnico',
-    email: 'juan@arbolitos.org',
-    role: 'technician' as const,
-    joinDate: '2023-03-20',
-    credits: 25
-  },
-  user: {
-    name: 'María García',
-    email: 'maria@email.com',
-    role: 'user' as const,
-    joinDate: '2024-01-15',
-    credits: 15
-  }
-};
-
 export default function App() {
   const [currentView, setCurrentView] = useState('home');
-  const [currentUser, setCurrentUser] = useState<typeof mockUsers[keyof typeof mockUsers] | null>(null);
+  const [currentUser, setCurrentUser] = useState<{
+    name: string;
+    email: string;
+    role: 'admin' | 'technician' | 'user';
+    joinDate: string;
+    credits: number;
+  } | null>(null);
 
+  // 🔹 Manejar navegación entre vistas
   const handleNavigate = (view: string) => {
-    // Handle navigation to login/register pages
     if (view === 'login' || view === 'register') {
       setCurrentView(view);
       return;
     }
 
-    // Logout
     if (view === 'logout') {
       setCurrentUser(null);
+      localStorage.removeItem("token");
+      localStorage.removeItem("rol");
       setCurrentView('home');
       return;
     }
 
-    // Role-based view access control
     if (currentUser) {
       switch (currentUser.role) {
         case 'admin':
-          // Admin can access: admin-dashboard, map (to add trees)
-          if (['admin-dashboard', 'map'].includes(view)) {
-            setCurrentView(view);
-          }
+          if (['admin-dashboard', 'map'].includes(view)) setCurrentView(view);
           break;
         case 'technician':
-          // Technician can access: technician-dashboard, assigned-trees, reports, map (to see tree locations)
-          if (['technician-dashboard', 'assigned-trees', 'reports', 'map'].includes(view)) {
-            setCurrentView(view);
-          }
+          if (['technician-dashboard', 'map'].includes(view)) setCurrentView(view);
           break;
         case 'user':
-          // Regular users can access: map, species, profile, credits, history
-          if (['map', 'species', 'profile', 'credits', 'history'].includes(view)) {
-            setCurrentView(view);
-          }
+          if (['map', 'species', 'profile', 'credits', 'history'].includes(view)) setCurrentView(view);
           break;
       }
     } else {
-      // Not logged in, can only access public views
       if (['home', 'map', 'species', 'login', 'register'].includes(view)) {
         setCurrentView(view);
       }
     }
   };
 
-  const handleLogin = (userType: 'user' | 'admin' | 'technician', credentials: { email: string; password: string }) => {
-    // In a real app, this would validate credentials with a backend
-    console.log('Login attempt:', userType, credentials);
-    
-    // Simulate successful login
-    setCurrentUser(mockUsers[userType]);
-    
-    // Navigate based on user role
-    switch (userType) {
-      case 'admin':
-        setCurrentView('admin-dashboard');
-        break;
-      case 'technician':
-        setCurrentView('technician-dashboard');
-        break;
-      case 'user':
-        setCurrentView('map');
-        break;
+  // 🔹 Manejar login real con backend
+  const handleLogin = async (
+    userType: 'user' | 'admin' | 'technician',
+    credentials: { email: string; password: string }
+  ) => {
+    try {
+      const res = await fetch("http://localhost:4000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(credentials)
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.msg || "Error al iniciar sesión");
+        return;
+      }
+
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("rol", data.usuario.rol);
+
+      const mappedRole =
+        data.usuario.rol === "Administrador"
+          ? "admin"
+          : data.usuario.rol === "Técnico"
+          ? "technician"
+          : "user" as "admin" | "technician" | "user";
+
+      const loggedUser = {
+        name: data.usuario.nombre,
+        email: data.usuario.correo,
+        role: mappedRole,
+        joinDate: new Date().toISOString().split("T")[0],
+        credits: 10
+      };
+
+      setCurrentUser(loggedUser);
+
+      switch (mappedRole) {
+        case 'admin':
+          setCurrentView('admin-dashboard');
+          break;
+        case 'technician':
+          setCurrentView('technician-dashboard');
+          break;
+        case 'user':
+          setCurrentView('map');
+          break;
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error de conexión con el servidor");
     }
   };
 
+  // 🔹 Manejar registro
   const handleRegister = (userData: any) => {
-    // In a real app, this would create a new user account
-    console.log('Registration:', userData);
-    
-    // Simulate successful registration - create new user
     const newUser = {
       name: userData.name,
       email: userData.email,
       role: 'user' as const,
       joinDate: userData.joinDate,
       credits: userData.credits,
-      profile: userData.profile
     };
-    
+
     setCurrentUser(newUser);
-    setCurrentView('map'); // New users go to map
+    setCurrentView('map');
   };
 
+  // 🔹 Renderizar vistas
   const renderCurrentView = () => {
-    // Authentication views (no user required)
     if (currentView === 'login') {
       return <LoginPage onNavigate={handleNavigate} onLogin={handleLogin} />;
     }
-    
     if (currentView === 'register') {
       return <RegisterPage onNavigate={handleNavigate} onRegister={handleRegister} />;
     }
 
-    // If not logged in, show limited views
     if (!currentUser) {
       switch (currentView) {
         case 'home':
@@ -149,7 +149,6 @@ export default function App() {
       }
     }
 
-    // Role-specific views
     switch (currentUser.role) {
       case 'admin':
         switch (currentView) {
@@ -183,6 +182,8 @@ export default function App() {
             return <CreditsPage onNavigate={handleNavigate} user={currentUser} />;
           case 'history':
             return <HistoryPage onNavigate={handleNavigate} />;
+          case 'statistics':
+            return <StatisticsPage onNavigate={handleNavigate} />;
           default:
             return <MapView onNavigate={handleNavigate} user={currentUser} />;
         }
@@ -192,23 +193,22 @@ export default function App() {
     }
   };
 
-  // Don't show header/footer on login/register pages for cleaner experience
   const showHeaderFooter = !['login', 'register'].includes(currentView);
 
   return (
     <div className="min-h-screen flex flex-col">
       {showHeaderFooter && (
-        <Header 
-          currentView={currentView} 
-          onNavigate={handleNavigate} 
+        <Header
+          currentView={currentView}
+          onNavigate={handleNavigate}
           user={currentUser}
         />
       )}
-      
+
       <main className={showHeaderFooter ? "flex-1" : "min-h-screen"}>
         {renderCurrentView()}
       </main>
-      
+
       {showHeaderFooter && (
         <Footer onNavigate={handleNavigate} />
       )}
