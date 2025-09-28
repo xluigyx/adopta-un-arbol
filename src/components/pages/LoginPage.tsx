@@ -241,12 +241,12 @@ export function LoginPage({ onNavigate, onLogin }: LoginPageProps) {
                 ¿No tienes cuenta? Regístrate aquí
               </Button>
 
-              <div className="text-xs text-gray-500">
+              {/* <div className="text-xs text-gray-500">
                 <p>¿Olvidaste tu contraseña?</p>
                 <Button variant="link" className="text-xs p-0 h-auto text-green-600">
                   Recuperar contraseña
                 </Button>
-              </div>
+              </div> */}
             </div>
 
             {/* Back to Home */}

@@ -7,16 +7,17 @@ import { Checkbox } from '../ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { TreePine, User, Eye, EyeOff, MapPin, Phone, Calendar } from 'lucide-react';
 
+// ✅ Props corregidas
 interface RegisterPageProps {
   onNavigate: (view: string) => void;
+  onRegister: (userData: any) => void;
 }
 
-export function RegisterPage({ onNavigate }: RegisterPageProps) {
+export function RegisterPage({ onNavigate, onRegister }: RegisterPageProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
+  const [popupMessage, setPopupMessage] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -31,43 +32,59 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
     motivation: ''
   });
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (formData.password !== formData.confirmPassword) {
-      alert('Las contraseñas no coinciden');
+      setPopupMessage('❌ Las contraseñas no coinciden');
       return;
     }
 
     if (!agreedToTerms) {
-      alert('Debes aceptar los términos y condiciones');
+      setPopupMessage('❌ Debes aceptar los términos y condiciones');
       return;
     }
 
     try {
-      const res = await fetch('http://localhost:4000/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("http://localhost:4000/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData)
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data.msg || 'Error al registrar usuario');
+        setPopupMessage(data.msg || "Error al registrar usuario");
         return;
       }
 
-      setSuccessMessage(data.msg || '¡Registro exitoso!');
-      setShowSuccessPopup(true);
+      // ✅ Notificar al padre (App.tsx)
+      onRegister({
+        name: `${formData.firstName} ${formData.lastName}`,
+        email: formData.email,
+        role: 'user',
+        joinDate: new Date().toISOString().split('T')[0],
+        credits: 10,
+        profile: {
+          phone: formData.phone,
+          city: formData.city,
+          neighborhood: formData.neighborhood,
+          birthDate: formData.birthDate,
+          motivation: formData.motivation
+        }
+      });
+
+      setPopupMessage("✅ Registro exitoso");
+      setTimeout(() => onNavigate("login"), 2000); // redirigir al login
     } catch (err) {
       console.error(err);
-      alert('Error de conexión con el servidor');
+      setPopupMessage("❌ Error de conexión con el servidor");
     }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -97,7 +114,7 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
 
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Personal Info */}
+              {/* Nombre y Apellido */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">Nombre</Label>
@@ -121,7 +138,7 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
                 </div>
               </div>
 
-              {/* Contact Info */}
+              {/* Email */}
               <div className="space-y-2">
                 <Label htmlFor="email">Correo electrónico</Label>
                 <Input
@@ -134,6 +151,7 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
                 />
               </div>
 
+              {/* Teléfono */}
               <div className="space-y-2">
                 <Label htmlFor="phone">Teléfono</Label>
                 <div className="relative">
@@ -141,7 +159,7 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="+591 70000000"
+                    placeholder="+591 700 12345"
                     className="pl-10"
                     value={formData.phone}
                     onChange={(e) => handleInputChange('phone', e.target.value)}
@@ -149,7 +167,7 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
                 </div>
               </div>
 
-              {/* Location */}
+              {/* Ciudad y Barrio */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="city">Ciudad</Label>
@@ -162,7 +180,6 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
                       <SelectItem value="la-paz">La Paz</SelectItem>
                       <SelectItem value="santa-cruz">Santa Cruz</SelectItem>
                       <SelectItem value="sucre">Sucre</SelectItem>
-                      <SelectItem value="potosi">Potosí</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -181,9 +198,9 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
                 </div>
               </div>
 
-              {/* Birth Date */}
+              {/* Fecha nacimiento */}
               <div className="space-y-2">
-                <Label htmlFor="birthDate">Fecha de nacimiento (opcional)</Label>
+                <Label htmlFor="birthDate">Fecha de nacimiento</Label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
@@ -218,6 +235,7 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
                 </div>
               </div>
 
+              {/* Confirmar password */}
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
                 <div className="relative">
@@ -239,9 +257,9 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
                 </div>
               </div>
 
-              {/* Motivation */}
+              {/* Motivación */}
               <div className="space-y-2">
-                <Label htmlFor="motivation">¿Por qué quieres cuidar árboles? (opcional)</Label>
+                <Label htmlFor="motivation">¿Por qué quieres cuidar árboles?</Label>
                 <Input
                   id="motivation"
                   placeholder="Ej: Quiero contribuir al medio ambiente..."
@@ -250,7 +268,7 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
                 />
               </div>
 
-              {/* Terms and Conditions */}
+              {/* Terms */}
               <div className="flex items-start space-x-2">
                 <Checkbox
                   id="terms"
@@ -271,9 +289,9 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
                 </div>
               </div>
 
-              {/* Submit Button */}
-              <Button 
-                type="submit" 
+              {/* Submit */}
+              <Button
+                type="submit"
                 className="w-full bg-green-600 hover:bg-green-700"
                 disabled={!agreedToTerms}
               >
@@ -281,6 +299,13 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
                 Crear mi cuenta
               </Button>
             </form>
+
+            {/* Popup mensaje */}
+            {popupMessage && (
+              <div className="mt-4 p-3 text-center text-sm bg-green-50 border rounded">
+                {popupMessage}
+              </div>
+            )}
 
             {/* Login Link */}
             <div className="mt-6 text-center">
@@ -306,29 +331,7 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
           </CardContent>
         </Card>
 
-        {/* Popup de éxito */}
-        {showSuccessPopup && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-            <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full text-center">
-              <TreePine className="h-10 w-10 text-green-600 mx-auto mb-3" />
-              <h2 className="text-lg font-bold text-green-800">{successMessage}</h2>
-              <p className="text-sm text-gray-600 mt-2">
-                Ahora puedes iniciar sesión con tu cuenta.
-              </p>
-              <Button
-                className="mt-4 w-full bg-green-600 hover:bg-green-700"
-                onClick={() => {
-                  setShowSuccessPopup(false);
-                  onNavigate('login');
-                }}
-              >
-                Ir al login
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Welcome Credits Info */}
+        {/* Info bienvenida */}
         <div className="mt-6 p-4 bg-green-50 rounded-lg border border-green-200">
           <div className="text-center">
             <TreePine className="h-8 w-8 text-green-600 mx-auto mb-2" />
