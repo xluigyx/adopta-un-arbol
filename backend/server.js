@@ -5,6 +5,8 @@ import dotenv from "dotenv";
 
 import authRoutes from "./routes/auth.js";
 import adminRoutes from "./routes/admin.js";
+import tecnicoRoutes from "./routes/tecnico.js";
+import plantaRoutes from "./routes/planta.js";
 
 dotenv.config();
 
@@ -17,6 +19,8 @@ app.use(express.json());
 // Rutas
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/tecnico", tecnicoRoutes);
+app.use("/api/planta", plantaRoutes);
 
 // Conectar a MongoDB
 mongoose

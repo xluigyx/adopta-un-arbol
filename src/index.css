@@ -5558,3 +5558,24 @@ html {
     opacity: 0;
   }
 }
+/* 🔧 Fix para que el mapa no tape los modales */
+.leaflet-container {
+  z-index: 0 !important;
+}
+
+.leaflet-pane {
+  z-index: 0 !important;
+}
+
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 0 !important;
+}
+
+/* Forzar que los modales vayan arriba */
+[data-radix-dialog-content],
+.DialogOverlay,
+.DialogContent {
+  z-index: 10000 !important;
+  position: relative !important;
+}
