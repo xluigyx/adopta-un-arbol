@@ -199,7 +199,7 @@ export function WateringReportForm({ task, onSubmit, onCancel }: WateringReportF
               <Label className="text-base font-medium">Estado de Completado *</Label>
               <RadioGroup 
                 value={report.completionStatus} 
-                onValueChange={(value) => setReport(prev => ({ ...prev, completionStatus: value as any }))}
+                onValueChange={(value: any) => setReport(prev => ({ ...prev, completionStatus: value as any }))}
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="full" id="full" />
@@ -267,7 +267,7 @@ export function WateringReportForm({ task, onSubmit, onCancel }: WateringReportF
               <Label className="text-base font-medium">Condición del Árbol Después del Riego *</Label>
               <RadioGroup 
                 value={report.treeCondition} 
-                onValueChange={(value) => setReport(prev => ({ ...prev, treeCondition: value as any }))}
+                onValueChange={(value: any) => setReport(prev => ({ ...prev, treeCondition: value as any }))}
               >
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex items-center space-x-2">

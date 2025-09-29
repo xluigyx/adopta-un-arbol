@@ -267,7 +267,7 @@ export function CreditsPage({ onNavigate, user }: CreditsPageProps) {
               <CardTitle>Método de Pago</CardTitle>
             </CardHeader>
             <CardContent>
-              <RadioGroup value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as any)}>
+              <RadioGroup value={paymentMethod} onValueChange={(value: any) => setPaymentMethod(value as any)}>
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3 p-4 border rounded-lg">
                     <RadioGroupItem value="card" id="card" />

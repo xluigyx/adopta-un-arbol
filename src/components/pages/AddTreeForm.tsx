@@ -121,7 +121,7 @@ export function AddTreeForm({ isOpen, onClose, onSave }: AddTreeFormProps) {
 
               <div className="space-y-2">
                 <Label htmlFor="species">Especie</Label>
-                <Select onValueChange={(value) => handleInputChange('species', value)} required>
+                <Select onValueChange={(value: string) => handleInputChange('species', value)} required>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar especie" />
                   </SelectTrigger>
@@ -139,7 +139,7 @@ export function AddTreeForm({ isOpen, onClose, onSave }: AddTreeFormProps) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="zone">Zona</Label>
-                <Select onValueChange={(value) => handleInputChange('zone', value)} required>
+                <Select onValueChange={(value: string) => handleInputChange('zone', value)} required>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar zona" />
                   </SelectTrigger>
@@ -210,7 +210,7 @@ export function AddTreeForm({ isOpen, onClose, onSave }: AddTreeFormProps) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="status">Estado</Label>
-                <Select onValueChange={(value) => handleInputChange('status', value)} defaultValue="available">
+                <Select onValueChange={(value: string) => handleInputChange('status', value)} defaultValue="available">
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -224,7 +224,7 @@ export function AddTreeForm({ isOpen, onClose, onSave }: AddTreeFormProps) {
 
               <div className="space-y-2">
                 <Label htmlFor="health">Salud</Label>
-                <Select onValueChange={(value) => handleInputChange('health', value)} defaultValue="good">
+                <Select onValueChange={(value: string) => handleInputChange('health', value)} defaultValue="good">
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>

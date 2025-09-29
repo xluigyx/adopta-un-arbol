@@ -3,18 +3,24 @@ import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, AreaChart, Area
+  PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
 import { 
   TreePine, Users, TrendingUp, Award, Target, Leaf, 
   Heart, MapPin, Calendar, DollarSign
 } from 'lucide-react';
 
-interface StatisticsPageProps {
-  onNavigate: (view: string) => void;
+interface User {
+  name: string;
+  role?: string;
 }
 
-export function StatisticsPage({ onNavigate }: StatisticsPageProps) {
+interface StatisticsPageProps {
+  onNavigate: (view: string) => void;
+  user?: User; // Ahora sí acepta user
+}
+
+export function StatisticsPage({ onNavigate, user }: StatisticsPageProps) {
   const monthlyData = [
     { month: 'Ene', planted: 45, adopted: 38, revenue: 1200 },
     { month: 'Feb', planted: 52, adopted: 45, revenue: 1400 },
@@ -62,6 +68,12 @@ export function StatisticsPage({ onNavigate }: StatisticsPageProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {user && (
+          <p className="text-gray-700 mb-4">
+            Bienvenido, {user.name} {user.role ? `(${user.role})` : ''}
+          </p>
+        )}
+
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-green-900 mb-2">Estadísticas del Proyecto</h1>
           <p className="text-gray-600">Métricas y análisis del impacto de Arbolitos</p>
@@ -134,8 +146,8 @@ export function StatisticsPage({ onNavigate }: StatisticsPageProps) {
           </Card>
         </div>
 
+        {/* Monthly Growth & Species Charts */}
         <div className="grid lg:grid-cols-2 gap-8 mb-8">
-          {/* Monthly Growth Chart */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -150,30 +162,13 @@ export function StatisticsPage({ onNavigate }: StatisticsPageProps) {
                   <XAxis dataKey="month" />
                   <YAxis />
                   <Tooltip />
-                  <Area 
-                    type="monotone" 
-                    dataKey="planted" 
-                    stackId="1"
-                    stroke="#22c55e" 
-                    fill="#22c55e"
-                    fillOpacity={0.6}
-                    name="Plantados"
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="adopted" 
-                    stackId="2"
-                    stroke="#16a34a" 
-                    fill="#16a34a"
-                    fillOpacity={0.6}
-                    name="Adoptados"
-                  />
+                  <Area type="monotone" dataKey="planted" stackId="1" stroke="#22c55e" fill="#22c55e" fillOpacity={0.6} name="Plantados" />
+                  <Area type="monotone" dataKey="adopted" stackId="2" stroke="#16a34a" fill="#16a34a" fillOpacity={0.6} name="Adoptados" />
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
-          {/* Species Distribution */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -205,8 +200,8 @@ export function StatisticsPage({ onNavigate }: StatisticsPageProps) {
           </Card>
         </div>
 
+        {/* Zone Performance & KPI */}
         <div className="grid lg:grid-cols-3 gap-8 mb-8">
-          {/* Zone Performance */}
           <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -228,7 +223,6 @@ export function StatisticsPage({ onNavigate }: StatisticsPageProps) {
             </CardContent>
           </Card>
 
-          {/* Key Performance Indicators */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
