@@ -4,7 +4,8 @@ import { Footer } from './components/layout/Footer';
 import { LandingPage } from './components/pages/LandingPage';
 import { LoginPage } from './components/pages/LoginPage';
 import { RegisterPage } from './components/pages/RegisterPage';
-import { MapView } from './components/pages/MapView';
+import {MapView} from './components/pages/MapView';
+
 import { SpeciesPage } from './components/pages/SpeciesPage';
 import { UserProfile } from './components/pages/UserProfile';
 import { CreditsPage } from './components/pages/CreditsPage';
@@ -160,15 +161,15 @@ export default function App() {
             return <AdminDashboard onNavigate={handleNavigate} />;
         }
 
-      case 'technician':
-        switch (currentView) {
-          case 'technician-dashboard':
-            return <TechnicianView onNavigate={handleNavigate} user={currentUser} />;
-          case 'map':
-            return <MapView onNavigate={handleNavigate} user={currentUser} />;
-          default:
-            return <TechnicianView onNavigate={handleNavigate} user={currentUser} />;
-        }
+      // case 'technician':
+      //   switch (currentView) {
+      //     case 'technician-dashboard':
+      //       return <TechnicianView onNavigate={handleNavigate} user={currentUser} />;
+      //     case 'map':
+      //       return <MapView onNavigate={handleNavigate} user={currentUser} />;
+      //     default:
+      //       return <TechnicianView onNavigate={handleNavigate} user={currentUser} />;
+      //   }
 
       case 'user':
         switch (currentView) {

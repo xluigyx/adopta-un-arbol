@@ -2,7 +2,8 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
-
+import path from "path";
+import { fileURLToPath } from "url";
 import authRoutes from "./routes/auth.js";
 import adminRoutes from "./routes/admin.js";
 import tecnicoRoutes from "./routes/tecnico.js";
@@ -11,6 +12,9 @@ import plantaRoutes from "./routes/planta.js";
 dotenv.config();
 
 const app = express();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Middlewares
 app.use(cors());
