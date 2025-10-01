@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Planta } from "../types/Planta"; // 👈 tu interfaz Planta
+import { Planta } from "../types/Planta"; 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
@@ -28,8 +28,7 @@ export function AddTreeForm({ isOpen, onClose, onSave, lat, lng }: AddTreeFormPr
   });
 
   const [imagen, setImagen] = useState<File | null>(null);
-  const [popupMessage, setPopupMessage] = useState("");
-  const [showPopup, setShowPopup] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const handleInputChange = (field: keyof Planta, value: any) => {
     setFormData((prev) => ({
@@ -65,19 +64,13 @@ export function AddTreeForm({ isOpen, onClose, onSave, lat, lng }: AddTreeFormPr
       const data = await res.json();
 
       if (!res.ok) {
-        setPopupMessage(data.msg || "❌ Error al registrar árbol");
-        setShowPopup(true);
+        setMessage({ type: "error", text: data.msg || "❌ Error al registrar árbol" });
         return;
       }
 
       // ✅ éxito
       onSave(data.planta);
-      setPopupMessage("🌳 Árbol agregado con éxito");
-      setShowPopup(true);
-      setTimeout(() => {
-        setShowPopup(false);
-        onClose();
-      }, 2000);
+      setMessage({ type: "success", text: "🌳 Árbol agregado con éxito" });
 
       // reset form
       setFormData({
@@ -89,99 +82,99 @@ export function AddTreeForm({ isOpen, onClose, onSave, lat, lng }: AddTreeFormPr
         longitud: lng ?? 0,
       });
       setImagen(null);
+
+      // cerrar después de un rato
+      setTimeout(() => {
+        onClose();
+        setMessage(null);
+      }, 2000);
     } catch (err) {
       console.error("Error al guardar árbol:", err);
-      setPopupMessage("❌ Error de conexión con el servidor");
-      setShowPopup(true);
+      setMessage({ type: "error", text: "❌ Error de conexión con el servidor" });
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-green-800">
-              <TreePine className="h-5 w-5 text-green-600" />
-              Agregar Nuevo Árbol
-            </DialogTitle>
-          </DialogHeader>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-green-800">
+            <TreePine className="h-5 w-5 text-green-600" />
+            Agregar Nuevo Árbol
+          </DialogTitle>
+        </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Nombre</Label>
-                <Input
-                  value={formData.nombre}
-                  onChange={(e) => handleInputChange("nombre", e.target.value)}
-                  required
-                />
-              </div>
+        {/* Mensaje de éxito o error */}
+        {message && (
+          <div
+            className={`p-3 rounded-md mb-4 text-sm font-medium ${
+              message.type === "success"
+                ? "bg-green-100 text-green-800"
+                : "bg-red-100 text-red-800"
+            }`}
+          >
+            {message.text}
+          </div>
+        )}
 
-              <div>
-                <Label>Especie</Label>
-                <Input
-                  value={formData.especie}
-                  onChange={(e) => handleInputChange("especie", e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Descripción</Label>
-              <Textarea
-                value={formData.descripcion}
-                onChange={(e) => handleInputChange("descripcion", e.target.value)}
+              <Label>Nombre</Label>
+              <Input
+                value={formData.nombre}
+                onChange={(e) => handleInputChange("nombre", e.target.value)}
+                required
               />
             </div>
 
             <div>
-              <Label>Imagen</Label>
-              <Input type="file" accept="image/*" onChange={handleFileChange} />
+              <Label>Especie</Label>
+              <Input
+                value={formData.especie}
+                onChange={(e) => handleInputChange("especie", e.target.value)}
+                required
+              />
             </div>
+          </div>
 
-            {/* Lat/Lng visibles (readonly) */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Latitud</Label>
-                <Input value={lat ?? ""} readOnly />
-              </div>
-              <div>
-                <Label>Longitud</Label>
-                <Input value={lng ?? ""} readOnly />
-              </div>
+          <div>
+            <Label>Descripción</Label>
+            <Textarea
+              value={formData.descripcion}
+              onChange={(e) => handleInputChange("descripcion", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label>Imagen</Label>
+            <Input type="file" accept="image/*" onChange={handleFileChange} />
+          </div>
+
+          {/* Lat/Lng visibles (readonly) */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Latitud</Label>
+              <Input value={lat ?? ""} readOnly />
             </div>
-
-            <div className="flex justify-end gap-3">
-              <Button type="button" variant="outline" onClick={onClose}>
-                <X className="mr-2 h-4 w-4" /> Cancelar
-              </Button>
-              <Button type="submit" className="bg-green-600 hover:bg-green-700">
-                <Save className="mr-2 h-4 w-4" /> Guardar
-              </Button>
+            <div>
+              <Label>Longitud</Label>
+              <Input value={lng ?? ""} readOnly />
             </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+          </div>
 
-      {/* Popup feedback */}
-      {showPopup && (
-        <div className="fixed inset-0 flex items-center justify-center z-[9999] bg-black/40">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full text-center">
-            <TreePine className="h-10 w-10 text-green-600 mx-auto mb-3" />
-            <h2 className="text-lg font-bold text-green-800">{popupMessage}</h2>
-            <Button
-              className="mt-4 w-full bg-green-600 hover:bg-green-700"
-              onClick={() => setShowPopup(false)}
-            >
-              Cerrar
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={onClose}>
+              <X className="mr-2 h-4 w-4" /> Cancelar
+            </Button>
+            <Button type="submit" className="bg-green-600 hover:bg-green-700">
+              <Save className="mr-2 h-4 w-4" /> Guardar
             </Button>
           </div>
-        </div>
-      )}
-    </>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
