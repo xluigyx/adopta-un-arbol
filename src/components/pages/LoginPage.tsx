@@ -73,12 +73,15 @@ export function LoginPage({ onNavigate, onLogin }: LoginPageProps) {
         setShowPopup(true);
         return;
       }
+      // ✅ Guarda el usuario con todos sus datos reales y lo imprime para depurar
+      if (data.usuario && data.usuario._id) {
+        localStorage.setItem("usuario", JSON.stringify(data.usuario));
+        localStorage.setItem("token", data.token);
+        console.log("✅ Usuario guardado en localStorage:", data.usuario);
+      } else {
+        console.error("❌ El backend no devolvió un usuario válido:", data);
+}
 
-      // ✅ Guardar usuario completo y token
-      localStorage.setItem("user", JSON.stringify(data.usuario));
-      localStorage.setItem("token", data.token);
-
-      console.log("👤 Usuario guardado:", data.usuario);
 
       // ✅ Login exitoso
       onLogin(selectedTab as "user" | "admin" | "technician", credentials);
@@ -216,11 +219,7 @@ export function LoginPage({ onNavigate, onLogin }: LoginPageProps) {
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
                       >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
                   </div>
@@ -247,6 +246,13 @@ export function LoginPage({ onNavigate, onLogin }: LoginPageProps) {
               >
                 ¿No tienes cuenta? Regístrate aquí
               </Button>
+
+              {/* <div className="text-xs text-gray-500">
+                <p>¿Olvidaste tu contraseña?</p>
+                <Button variant="link" className="text-xs p-0 h-auto text-green-600">
+                  Recuperar contraseña
+                </Button>
+              </div> */}
             </div>
 
             {/* Back to Home */}

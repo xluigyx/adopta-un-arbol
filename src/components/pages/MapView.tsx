@@ -25,7 +25,8 @@ import {
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import "leaflet-extra-markers"; // 👈 importante
+import "leaflet-extra-markers";
+import { toast } from "sonner";
 
 import { AddTreeForm } from "./AddTreeForm";
 import { Planta } from "../types/Planta";
@@ -33,7 +34,13 @@ import { ImageWithFallback } from "../figma/ImageWithFallback";
 
 interface MapViewProps {
   onNavigate: (view: string) => void;
-  user?: { name: string; role: string };
+  user?: {
+    _id: string;
+    name: string;
+    email: string;
+    role: string;
+    credits: number;
+  };
 }
 
 // componente para manejar clicks en el mapa
@@ -53,7 +60,7 @@ export function MapView({ onNavigate, user }: MapViewProps) {
   const [showAddTreeForm, setShowAddTreeForm] = useState(false);
   const [clickedPosition, setClickedPosition] = useState<{ lat: number; lng: number } | null>(null);
 
-  // cargar plantas del backend
+  // 🔹 cargar plantas del backend
   useEffect(() => {
     const fetchTrees = async () => {
       try {
@@ -70,28 +77,29 @@ export function MapView({ onNavigate, user }: MapViewProps) {
   const filteredTrees =
     filter === "all" ? trees : trees.filter((tree) => tree.estadoactual === filter);
 
-  // íconos de colores con ExtraMarkers
-  const greenIcon = (L as any).ExtraMarkers.icon({
-    icon: "fa-tree",
-    markerColor: "green",
-    shape: "circle",
-    prefix: "fa",
-  });
+  // 🔹 íconos personalizados
+  const icons = {
+    available: (L as any).ExtraMarkers.icon({
+      icon: "fa-tree",
+      markerColor: "green",
+      shape: "circle",
+      prefix: "fa",
+    }),
+    adopted: (L as any).ExtraMarkers.icon({
+      icon: "fa-tree",
+      markerColor: "blue",
+      shape: "circle",
+      prefix: "fa",
+    }),
+    maintenance: (L as any).ExtraMarkers.icon({
+      icon: "fa-tree",
+      markerColor: "red",
+      shape: "circle",
+      prefix: "fa",
+    }),
+  };
 
-  const blueIcon = (L as any).ExtraMarkers.icon({
-    icon: "fa-tree",
-    markerColor: "blue",
-    shape: "circle",
-    prefix: "fa",
-  });
-
-  const redIcon = (L as any).ExtraMarkers.icon({
-    icon: "fa-tree",
-    markerColor: "red",
-    shape: "circle",
-    prefix: "fa",
-  });
-
+  // 🔹 texto del estado
   const getStatusText = (status: string) => {
     switch (status) {
       case "available":
@@ -105,18 +113,42 @@ export function MapView({ onNavigate, user }: MapViewProps) {
     }
   };
 
-  const getHealthIcon = (salud?: string) => {
-    switch (salud) {
-      case "excellent":
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case "good":
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case "fair":
-        return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
-      case "poor":
-        return <AlertTriangle className="h-4 w-4 text-red-500" />;
-      default:
-        return <CheckCircle className="h-4 w-4 text-gray-500" />;
+  // 🔹 adoptar árbol
+  const handleAdoptTree = async (treeId: string) => {
+    if (!user?._id) {
+      toast.error("No se encontró el usuario en sesión.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`http://localhost:4000/api/planta/adopt/${treeId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usuarioId: user._id }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.msg || "Error al adoptar el árbol");
+      }
+
+      toast.success(data.msg || "🌳 Árbol adoptado con éxito");
+
+      // 🔹 actualizar estado en frontend sin recargar
+      setTrees((prev) =>
+        prev.map((t) =>
+          t._id === treeId
+            ? { ...t, estadoactual: "adopted" }
+            : t
+        )
+      );
+
+      // cerrar modal
+      setSelectedTree(null);
+    } catch (error) {
+      console.error("Error al adoptar árbol:", error);
+      toast.error("Error al adoptar el árbol");
     }
   };
 
@@ -148,8 +180,8 @@ export function MapView({ onNavigate, user }: MapViewProps) {
           )}
         </div>
 
-        {/* Mapa con react-leaflet */}
-        <div className="h-[600px] w-full mb-8">
+        {/* 🌍 Mapa */}
+        <div className="h-[600px] w-full mb-8 rounded-lg overflow-hidden shadow-lg border">
           <MapContainer
             center={[-17.39, -66.15]}
             zoom={13}
@@ -160,7 +192,6 @@ export function MapView({ onNavigate, user }: MapViewProps) {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            {/* Click handler solo para admin */}
             {user?.role === "admin" && (
               <MapClickHandler
                 onMapClick={(lat, lng) => {
@@ -170,21 +201,14 @@ export function MapView({ onNavigate, user }: MapViewProps) {
               />
             )}
 
-            {/* Marcadores */}
             {filteredTrees.map((tree) => (
               <Marker
                 key={tree._id}
                 position={[tree.latitud, tree.longitud]}
+                icon={icons[tree.estadoactual as keyof typeof icons]}
                 eventHandlers={{
                   click: () => setSelectedTree(tree),
                 }}
-                icon={
-                  tree.estadoactual === "available"
-                    ? greenIcon
-                    : tree.estadoactual === "adopted"
-                    ? blueIcon
-                    : redIcon
-                }
               >
                 <Popup>
                   <strong>{tree.nombre}</strong>
@@ -196,7 +220,7 @@ export function MapView({ onNavigate, user }: MapViewProps) {
           </MapContainer>
         </div>
 
-        {/* Detalles de árbol seleccionado */}
+        {/* 🪴 Modal Detalle */}
         {selectedTree && (
           <Dialog open={!!selectedTree} onOpenChange={() => setSelectedTree(null)}>
             <DialogContent className="max-w-2xl">
@@ -218,7 +242,8 @@ export function MapView({ onNavigate, user }: MapViewProps) {
                   </div>
 
                   {selectedTree.estadoactual === "available" && user?.role !== "admin" && (
-                    <Button className="w-full" onClick={() => onNavigate("adopt")}>
+                    <Button className="w-full bg-green-600 hover:bg-green-700"
+                      onClick={() => handleAdoptTree(selectedTree._id)}>
                       <Heart className="mr-2 h-4 w-4" />
                       Adoptar Este Árbol
                     </Button>
@@ -256,7 +281,7 @@ export function MapView({ onNavigate, user }: MapViewProps) {
           </Dialog>
         )}
 
-        {/* Formulario agregar árbol */}
+        {/* ➕ Formulario agregar árbol */}
         <AddTreeForm
           isOpen={showAddTreeForm}
           onClose={() => setShowAddTreeForm(false)}

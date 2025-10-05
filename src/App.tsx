@@ -225,7 +225,7 @@ const handleLogin = async (
           case "statistics":
             return <StatisticsPage onNavigate={handleNavigate} />;
           default:
-            return <MapView onNavigate={handleNavigate} user={currentUser} />;
+            return <MapView onNavigate={handleNavigate}  />;
         }
 
       default:

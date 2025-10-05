@@ -23,7 +23,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// ✅ Obtener todas las plantas
+/* =======================================
+   ✅ OBTENER TODAS LAS PLANTAS
+======================================= */
 router.get("/", async (req, res) => {
   try {
     const plantas = await Planta.find();
@@ -34,17 +36,13 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ✅ Crear nueva planta con imagen
+/* =======================================
+   ✅ CREAR NUEVA PLANTA CON IMAGEN
+======================================= */
 router.post("/", upload.single("imagen"), async (req, res) => {
   try {
-    const {
-      nombre,
-      especie,
-      descripcion,
-      estadoactual,
-      latitud,
-      longitud,
-    } = req.body;
+    const { nombre, especie, descripcion, estadoactual, latitud, longitud } =
+      req.body;
 
     const nuevaPlanta = new Planta({
       nombre,
@@ -53,7 +51,6 @@ router.post("/", upload.single("imagen"), async (req, res) => {
       estadoactual,
       latitud,
       longitud,
-      // 🔹 Guardamos solo el nombre del archivo
       imagen: req.file ? req.file.filename : null,
     });
 
@@ -66,6 +63,61 @@ router.post("/", upload.single("imagen"), async (req, res) => {
   } catch (error) {
     console.error("❌ Error al registrar planta:", error);
     res.status(500).json({ msg: "Error al registrar árbol" });
+  }
+});
+
+/* =======================================
+   ✅ ADOPTAR UN ÁRBOL (RESTA CRÉDITO)
+======================================= */
+router.patch("/adopt/:id", async (req, res) => {
+  try {
+    const { usuarioId } = req.body;
+    console.log("📥 PATCH /api/planta/adopt:", req.params.id, usuarioId);
+
+    if (!usuarioId) {
+      return res.status(400).json({ msg: "Falta el ID del usuario" });
+    }
+
+    const planta = await Planta.findById(req.params.id);
+    if (!planta) {
+      return res.status(404).json({ msg: "Árbol no encontrado" });
+    }
+
+    if (planta.estadoactual !== "available") {
+      return res
+        .status(400)
+        .json({ msg: "El árbol no está disponible para adopción" });
+    }
+
+    // Buscar usuario y verificar créditos
+    const Usuario = (await import("../models/Usuario.js")).default;
+    const usuario = await Usuario.findById(usuarioId);
+    if (!usuario) {
+      return res.status(404).json({ msg: "Usuario no encontrado" });
+    }
+
+    if (usuario.puntostotales < 1) {
+      return res
+        .status(400)
+        .json({ msg: "No tienes créditos suficientes para adoptar un árbol" });
+    }
+
+    // Actualizar planta y usuario
+    planta.estadoactual = "adopted";
+    planta.adoptante = usuario._id;
+    await planta.save();
+
+    usuario.puntostotales -= 1; // 🔹 restamos un crédito
+    await usuario.save();
+
+    res.json({
+      msg: "🌳 Árbol adoptado con éxito",
+      planta,
+      creditosRestantes: usuario.puntostotales,
+    });
+  } catch (error) {
+    console.error("❌ Error al adoptar árbol:", error);
+    res.status(500).json({ msg: "Error al adoptar el árbol" });
   }
 });
 
