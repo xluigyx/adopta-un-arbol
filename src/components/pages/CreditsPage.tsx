@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { Label } from '../ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Textarea } from '../ui/textarea';
-import { Coins, CreditCard, Smartphone, QrCode, Check, Gift, Star, Upload, Camera, X, AlertTriangle } from 'lucide-react';
+import { 
+  Coins, QrCode, Check, Gift, Star, Upload, Camera, X, AlertTriangle 
+} from 'lucide-react';
 
 interface CreditPackage {
   id: string;
@@ -20,89 +21,66 @@ interface CreditPackage {
 }
 
 interface CreditsPageProps {
-  onNavigate: (view: string) => void;
+  onNavigate?: (view: string) => void; // 🔹 Agregado para navegación
   user: {
+    _id: string;
     name: string;
     credits: number;
   };
 }
 
-export function CreditsPage({ onNavigate, user }: CreditsPageProps) {
+
+export function CreditsPage({ user }: CreditsPageProps) {
   const [selectedPackage, setSelectedPackage] = useState<string>('');
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'digital' | 'qr'>('card');
-  const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
   const [showPaymentProof, setShowPaymentProof] = useState(false);
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
   const [paymentProofPreview, setPaymentProofPreview] = useState<string | null>(null);
   const [paymentNotes, setPaymentNotes] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
+  // 🔹 Estados para QR del admin
+  const [adminQR, setAdminQR] = useState<string | null>(null);
+  const [isLoadingQR, setIsLoadingQR] = useState(true);
+
+  // 🔹 Cargar QR del admin desde el backend
+  useEffect(() => {
+    const fetchAdminQR = async () => {
+      try {
+        const res = await fetch("http://localhost:4000/api/qr");
+        const data = await res.json();
+        if (data.success) {
+          setAdminQR(`http://localhost:4000${data.imageUrl}`);
+        }
+      } catch (error) {
+        console.error("Error cargando QR del admin:", error);
+      } finally {
+        setIsLoadingQR(false);
+      }
+    };
+    fetchAdminQR();
+  }, []);
+
+  // 🔹 Paquetes en bolivianos
   const creditPackages: CreditPackage[] = [
-    {
-      id: 'starter',
-      name: 'Paquete Inicial',
-      credits: 10,
-      price: 5,
-      description: 'Perfecto para adoptar tu primer árbol'
-    },
-    {
-      id: 'family',
-      name: 'Paquete Familiar',
-      credits: 25,
-      price: 10,
-      originalPrice: 12.5,
-      bonus: 3,
-      description: 'Ideal para familias comprometidas con el ambiente'
-    },
-    {
-      id: 'community',
-      name: 'Paquete Comunidad',
-      credits: 50,
-      price: 18,
-      originalPrice: 25,
-      popular: true,
-      bonus: 8,
-      description: 'Para comunidades que quieren hacer un gran impacto'
-    },
-    {
-      id: 'enterprise',
-      name: 'Paquete Empresa',
-      credits: 100,
-      price: 30,
-      originalPrice: 50,
-      bonus: 20,
-      description: 'Para empresas con responsabilidad social'
-    }
+    { id: 'starter', name: 'Paquete Inicial', credits: 10, price: 35, description: 'Perfecto para adoptar tu primer árbol' },
+    { id: 'family', name: 'Paquete Familiar', credits: 25, price: 80, originalPrice: 100, bonus: 3, description: 'Ideal para familias comprometidas con el ambiente' },
+    { id: 'community', name: 'Paquete Comunidad', credits: 50, price: 125, originalPrice: 160, popular: true, bonus: 8, description: 'Para comunidades que quieren hacer un gran impacto' },
+    { id: 'enterprise', name: 'Paquete Empresa', credits: 100, price: 200, originalPrice: 300, bonus: 20, description: 'Para empresas con responsabilidad social' }
   ];
 
   const selectedPkg = creditPackages.find(pkg => pkg.id === selectedPackage);
 
   const handlePurchase = () => {
-    if (paymentMethod === 'qr') {
-      // Para pago con QR, mostrar formulario de comprobante
-      setShowPaymentProof(true);
-    } else {
-      // Para otros métodos, proceso normal
-      setShowPurchaseDialog(true);
-      setIsProcessingPayment(true);
-      setTimeout(() => {
-        setShowPurchaseDialog(false);
-        setIsProcessingPayment(false);
-        alert(`¡Compra exitosa! Se han agregado ${selectedPkg?.credits} créditos a tu cuenta.`);
-      }, 2000);
-    }
+    if (!selectedPkg) return;
+    setShowPaymentProof(true);
   };
 
   const handlePaymentProofUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setPaymentProof(file);
-      
-      // Create preview
       const reader = new FileReader();
-      reader.onload = (e) => {
-        setPaymentProofPreview(e.target?.result as string);
-      };
+      reader.onload = (e) => setPaymentProofPreview(e.target?.result as string);
       reader.readAsDataURL(file);
     }
   };
@@ -112,23 +90,42 @@ export function CreditsPage({ onNavigate, user }: CreditsPageProps) {
     setPaymentProofPreview(null);
   };
 
-  const submitPaymentProof = () => {
-    if (paymentProof) {
-      setShowPaymentProof(false);
-      setShowPurchaseDialog(true);
-      setIsProcessingPayment(true);
-      
-      // Simular proceso de verificación de comprobante
-      setTimeout(() => {
-        setShowPurchaseDialog(false);
-        setIsProcessingPayment(false);
-        alert(`¡Comprobante recibido! Tu pago será verificado en las próximas 24 horas. Se agregarán ${selectedPkg?.credits} créditos una vez confirmado.`);
-        
-        // Reset form
-        setPaymentProof(null);
-        setPaymentProofPreview(null);
-        setPaymentNotes('');
-      }, 3000);
+  // 🔹 Enviar comprobante al backend (y notificar admin)
+  const submitPaymentProof = async () => {
+    if (!paymentProof || !selectedPkg) return;
+
+    setIsProcessingPayment(true);
+    setShowPaymentProof(false);
+
+    try {
+      const formData = new FormData();
+      formData.append("userId", user._id);
+      formData.append("nombreUsuario", user.name);
+      formData.append("paqueteId", selectedPkg.id);
+      formData.append("paqueteNombre", selectedPkg.name);
+      formData.append("creditos", selectedPkg.credits.toString());
+      formData.append("bonus", (selectedPkg.bonus || 0).toString());
+      formData.append("precio", selectedPkg.price.toString());
+      formData.append("notas", paymentNotes);
+      formData.append("comprobante", paymentProof);
+
+      const res = await fetch("http://localhost:4000/api/pago", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!data.success) throw new Error(data.message);
+      alert("✅ Comprobante enviado. El administrador revisará tu pago.");
+    } catch (error) {
+      console.error("Error al subir comprobante:", error);
+      alert("❌ Error al enviar el comprobante. Intenta nuevamente.");
+    } finally {
+      setIsProcessingPayment(false);
+      setPaymentProof(null);
+      setPaymentProofPreview(null);
+      setPaymentNotes('');
     }
   };
 
@@ -159,33 +156,21 @@ export function CreditsPage({ onNavigate, user }: CreditsPageProps) {
           </CardHeader>
           <CardContent>
             <div className="grid md:grid-cols-3 gap-6">
-              <div className="text-center space-y-2">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                  <span className="text-green-600 font-bold">1</span>
+              {[1, 2, 3].map((num) => (
+                <div key={num} className="text-center space-y-2">
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                    <span className="text-green-600 font-bold">{num}</span>
+                  </div>
+                  <h3 className="font-semibold text-green-900">
+                    {num === 1 ? 'Compra Créditos' : num === 2 ? 'Adopta Árboles' : 'Recibe Actualizaciones'}
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    {num === 1 ? 'Elige el paquete que mejor se adapte a tus necesidades' :
+                    num === 2 ? 'Usa 1 crédito para adoptar cada árbol que te guste' :
+                    'Mantente informado sobre el crecimiento de tus árboles'}
+                  </p>
                 </div>
-                <h3 className="font-semibold text-green-900">Compra Créditos</h3>
-                <p className="text-sm text-gray-600">
-                  Elige el paquete que mejor se adapte a tus necesidades
-                </p>
-              </div>
-              <div className="text-center space-y-2">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                  <span className="text-green-600 font-bold">2</span>
-                </div>
-                <h3 className="font-semibold text-green-900">Adopta Árboles</h3>
-                <p className="text-sm text-gray-600">
-                  Usa 1 crédito para adoptar cada árbol que te guste
-                </p>
-              </div>
-              <div className="text-center space-y-2">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                  <span className="text-green-600 font-bold">3</span>
-                </div>
-                <h3 className="font-semibold text-green-900">Recibe Actualizaciones</h3>
-                <p className="text-sm text-gray-600">
-                  Mantente informado sobre el crecimiento de tus árboles
-                </p>
-              </div>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -195,13 +180,13 @@ export function CreditsPage({ onNavigate, user }: CreditsPageProps) {
           <h2 className="text-2xl font-bold text-green-900 mb-6">Elige tu Paquete</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {creditPackages.map((pkg) => (
-              <Card 
-                key={pkg.id} 
+              <Card
+                key={pkg.id}
                 className={`cursor-pointer transition-all ${
-                  selectedPackage === pkg.id 
-                    ? 'ring-2 ring-green-500 shadow-lg' 
-                    : 'hover:shadow-md'
-                } ${pkg.popular ? 'border-green-300' : ''}`}
+                  selectedPackage === pkg.id
+                    ? "ring-2 ring-green-500 shadow-lg"
+                    : "hover:shadow-md"
+                } ${pkg.popular ? "border-green-300" : ""}`}
                 onClick={() => setSelectedPackage(pkg.id)}
               >
                 {pkg.popular && (
@@ -210,45 +195,37 @@ export function CreditsPage({ onNavigate, user }: CreditsPageProps) {
                     Más Popular
                   </div>
                 )}
-                
                 <CardHeader className="text-center">
                   <CardTitle className="text-lg text-green-900">{pkg.name}</CardTitle>
                   <div className="space-y-2">
                     <div className="text-3xl font-bold text-green-600">
-                      ${pkg.price}
+                      Bs {pkg.price}
                       {pkg.originalPrice && (
                         <span className="text-lg text-gray-400 line-through ml-2">
-                          ${pkg.originalPrice}
+                          Bs {pkg.originalPrice}
                         </span>
                       )}
                     </div>
                     <div className="text-2xl font-semibold text-green-900">
                       {pkg.credits} créditos
                       {pkg.bonus && (
-                        <span className="text-sm text-green-600 block">
-                          + {pkg.bonus} bonus
-                        </span>
+                        <span className="text-sm text-green-600 block">+ {pkg.bonus} bonus</span>
                       )}
                     </div>
                   </div>
                 </CardHeader>
-                
                 <CardContent className="space-y-4">
-                  <p className="text-sm text-gray-600 text-center">
-                    {pkg.description}
-                  </p>
-                  
+                  <p className="text-sm text-gray-600 text-center">{pkg.description}</p>
                   <div className="text-center">
                     {pkg.originalPrice && (
                       <Badge className="bg-green-100 text-green-800 mb-2">
-                        Ahorra ${(pkg.originalPrice - pkg.price).toFixed(2)}
+                        Ahorra Bs {(pkg.originalPrice - pkg.price).toFixed(2)}
                       </Badge>
                     )}
                     <div className="text-xs text-gray-500">
-                      ${(pkg.price / pkg.credits).toFixed(2)} por crédito
+                      Bs {(pkg.price / pkg.credits).toFixed(2)} por crédito
                     </div>
                   </div>
-
                   {selectedPackage === pkg.id && (
                     <div className="flex justify-center">
                       <Check className="h-6 w-6 text-green-500" />
@@ -259,53 +236,6 @@ export function CreditsPage({ onNavigate, user }: CreditsPageProps) {
             ))}
           </div>
         </div>
-
-        {/* Payment Method */}
-        {selectedPackage && (
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Método de Pago</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <RadioGroup value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as any)}>
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-3 p-4 border rounded-lg">
-                    <RadioGroupItem value="card" id="card" />
-                    <Label htmlFor="card" className="flex items-center gap-2 cursor-pointer flex-1">
-                      <CreditCard className="h-5 w-5 text-blue-600" />
-                      <div>
-                        <div className="font-medium">Tarjeta de Crédito/Débito</div>
-                        <div className="text-sm text-gray-500">Visa, Mastercard, American Express</div>
-                      </div>
-                    </Label>
-                  </div>
-
-                  <div className="flex items-center space-x-3 p-4 border rounded-lg">
-                    <RadioGroupItem value="digital" id="digital" />
-                    <Label htmlFor="digital" className="flex items-center gap-2 cursor-pointer flex-1">
-                      <Smartphone className="h-5 w-5 text-green-600" />
-                      <div>
-                        <div className="font-medium">Billetera Digital</div>
-                        <div className="text-sm text-gray-500">PayPal, Apple Pay, Google Pay</div>
-                      </div>
-                    </Label>
-                  </div>
-
-                  <div className="flex items-center space-x-3 p-4 border rounded-lg">
-                    <RadioGroupItem value="qr" id="qr" />
-                    <Label htmlFor="qr" className="flex items-center gap-2 cursor-pointer flex-1">
-                      <QrCode className="h-5 w-5 text-purple-600" />
-                      <div>
-                        <div className="font-medium">Código QR</div>
-                        <div className="text-sm text-gray-500">Pago mediante código QR</div>
-                      </div>
-                    </Label>
-                  </div>
-                </div>
-              </RadioGroup>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Purchase Summary */}
         {selectedPackage && selectedPkg && (
@@ -331,192 +261,100 @@ export function CreditsPage({ onNavigate, user }: CreditsPageProps) {
                 )}
                 <div className="border-t pt-2 flex justify-between font-bold">
                   <span>Total a pagar:</span>
-                  <span>${selectedPkg.price}</span>
-                </div>
-                <div className="flex justify-between text-green-600">
-                  <span>Total de créditos:</span>
-                  <span className="font-medium">
-                    {selectedPkg.credits + (selectedPkg.bonus || 0)}
-                  </span>
+                  <span>Bs {selectedPkg.price}</span>
                 </div>
               </div>
 
               <Button className="w-full" size="lg" onClick={handlePurchase}>
-                <Coins className="mr-2 h-5 w-5" />
-                Proceder al Pago
+                <QrCode className="mr-2 h-5 w-5" /> Pagar con Código QR
               </Button>
 
-              {/* Payment Proof Dialog for QR payments */}
+              {/* Dialog QR */}
               <Dialog open={showPaymentProof} onOpenChange={setShowPaymentProof}>
-                <DialogContent className="max-w-2xl">
+               <DialogContent
+  className="
+    w-[95vw] sm:w-[600px] lg:w-[700px]
+    max-h-[90vh] overflow-y-auto
+    rounded-2xl p-6
+  "
+>
+
                   <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                      <QrCode className="h-5 w-5 text-purple-600" />
-                      Comprobante de Pago - Código QR
+                      <QrCode className="h-5 w-5 text-purple-600" /> Pago con Código QR
                     </DialogTitle>
                   </DialogHeader>
                   <div className="space-y-6">
-                    <div className="bg-purple-50 p-4 rounded-lg">
-                      <div className="flex items-start gap-3">
-                        <AlertTriangle className="h-5 w-5 text-purple-600 mt-0.5" />
-                        <div>
-                          <h4 className="font-medium text-purple-900 mb-1">Instrucciones de Pago</h4>
-                          <p className="text-sm text-purple-700 mb-2">
-                            1. Realiza el pago de <strong>${selectedPkg?.price}</strong> usando el código QR proporcionado
-                          </p>
-                          <p className="text-sm text-purple-700 mb-2">
-                            2. Toma una captura de pantalla del comprobante de pago exitoso
-                          </p>
-                          <p className="text-sm text-purple-700">
-                            3. Súbela aquí junto con cualquier nota adicional
-                          </p>
-                        </div>
-                      </div>
-                    </div>
 
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label className="text-base font-medium">Comprobante de Pago *</Label>
-                        <p className="text-sm text-gray-600">
-                          Sube una imagen clara del comprobante de pago (captura de pantalla, foto, etc.)
-                        </p>
-                      </div>
-
-                      {!paymentProofPreview ? (
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                          <Camera className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                          <div className="space-y-2">
-                            <p className="text-gray-600">Subir comprobante de pago</p>
-                            <p className="text-sm text-gray-500">PNG, JPG hasta 10MB</p>
-                          </div>
-                          <label htmlFor="proof-upload" className="mt-4 inline-flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-md cursor-pointer hover:bg-purple-700">
-                            <Upload className="h-4 w-4" />
-                            Seleccionar Archivo
-                          </label>
-                          <input
-                            id="proof-upload"
-                            type="file"
-                            accept="image/*"
-                            onChange={handlePaymentProofUpload}
-                            className="hidden"
-                          />
-                        </div>
-                      ) : (
-                        <div className="relative">
+                    {/* Mostrar QR del admin */}
+                    <div className="text-center">
+                      {isLoadingQR ? (
+                        <p className="text-gray-500">Cargando código QR...</p>
+                      ) : adminQR ? (
+                        <>
+                          <p className="text-gray-700 mb-2">
+                            Escanea este código QR para pagar Bs {selectedPkg.price}
+                          </p>
                           <img
-                            src={paymentProofPreview}
-                            alt="Comprobante de pago"
-                            className="w-full max-w-md mx-auto rounded-lg shadow-md"
+                            src={adminQR}
+                            alt="QR del administrador"
+                            className="w-56 h-56 mx-auto rounded-lg shadow-md border border-gray-200 object-contain"
                           />
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={removePaymentProof}
-                            className="absolute top-2 right-2"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                          <div className="mt-2 text-center">
-                            <label htmlFor="proof-replace" className="text-sm text-purple-600 hover:text-purple-800 cursor-pointer">
-                              Cambiar imagen
-                            </label>
-                            <input
-                              id="proof-replace"
-                              type="file"
-                              accept="image/*"
-                              onChange={handlePaymentProofUpload}
-                              className="hidden"
-                            />
-                          </div>
-                        </div>
+                        </>
+                      ) : (
+                        <p className="text-red-500">No hay QR disponible. Contacta al administrador.</p>
                       )}
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="payment-notes">Notas Adicionales (Opcional)</Label>
+                    {/* Instrucciones */}
+                    <div className="bg-purple-50 p-4 rounded-lg flex items-start gap-3">
+                      <AlertTriangle className="h-5 w-5 text-purple-600 mt-0.5" />
+                      <div>
+                        <h4 className="font-medium text-purple-900 mb-1">Instrucciones</h4>
+                        <p className="text-sm text-purple-700 mb-1">1. Escanea el QR y paga Bs {selectedPkg?.price}</p>
+                        <p className="text-sm text-purple-700 mb-1">2. Toma una captura o foto del comprobante</p>
+                        <p className="text-sm text-purple-700">3. Sube la imagen aquí</p>
+                      </div>
+                    </div>
+
+                    {/* Subir comprobante */}
+                    {!paymentProofPreview ? (
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                        <Camera className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-600">Subir comprobante de pago</p>
+                        <label htmlFor="proof-upload" className="mt-4 inline-flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-md cursor-pointer hover:bg-purple-700">
+                          <Upload className="h-4 w-4" /> Seleccionar Archivo
+                        </label>
+                        <input id="proof-upload" type="file" accept="image/*" onChange={handlePaymentProofUpload} className="hidden" />
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <img src={paymentProofPreview} alt="Comprobante" className="w-full max-w-md mx-auto rounded-lg shadow-md" />
+                        <Button variant="destructive" size="sm" onClick={removePaymentProof} className="absolute top-2 right-2">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+
+                    <div>
+                      <Label htmlFor="payment-notes">Notas (Opcional)</Label>
                       <Textarea
                         id="payment-notes"
-                        placeholder="Número de transacción, hora del pago, o cualquier información adicional..."
+                        placeholder="Número de transacción, comentarios..."
                         value={paymentNotes}
                         onChange={(e) => setPaymentNotes(e.target.value)}
                         rows={3}
                       />
                     </div>
 
-                    <div className="bg-yellow-50 p-4 rounded-lg">
-                      <div className="flex items-start gap-3">
-                        <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
-                        <div>
-                          <h4 className="font-medium text-yellow-900 mb-1">Tiempo de Verificación</h4>
-                          <p className="text-sm text-yellow-700">
-                            Tu comprobante será verificado en un plazo de 24 horas. 
-                            Los créditos se agregarán a tu cuenta una vez confirmado el pago.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-3 pt-4">
-                      <Button 
-                        variant="outline" 
-                        onClick={() => setShowPaymentProof(false)}
-                        className="flex-1"
-                      >
-                        Cancelar
-                      </Button>
-                      <Button 
-                        onClick={submitPaymentProof}
-                        disabled={!paymentProof}
-                        className="flex-1"
-                      >
-                        <Upload className="mr-2 h-4 w-4" />
-                        Enviar Comprobante
-                      </Button>
-                    </div>
+                    <Button onClick={submitPaymentProof} disabled={!paymentProof} className="w-full bg-purple-600 hover:bg-purple-700 text-white">
+                      <Upload className="mr-2 h-4 w-4" /> Enviar Comprobante
+                    </Button>
                   </div>
                 </DialogContent>
               </Dialog>
-
-              {/* Processing Payment Dialog */}
-              <Dialog open={showPurchaseDialog} onOpenChange={setShowPurchaseDialog}>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>
-                      {paymentMethod === 'qr' ? 'Verificando Comprobante...' : 'Procesando Pago...'}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div className="py-8 text-center space-y-4">
-                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-green-600 mx-auto"></div>
-                    <p className="text-gray-600">
-                      {paymentMethod === 'qr' 
-                        ? 'Por favor espera mientras verificamos tu comprobante de pago.'
-                        : 'Por favor espera mientras procesamos tu pago de forma segura.'
-                      }
-                    </p>
-                  </div>
-                </DialogContent>
-              </Dialog>
-
-              <div className="text-xs text-gray-500 text-center">
-                <p>
-                  Al proceder con la compra, aceptas nuestros términos y condiciones.
-                  Los créditos no son reembolsables y no tienen fecha de vencimiento.
-                </p>
-              </div>
             </CardContent>
           </Card>
-        )}
-
-        {!selectedPackage && (
-          <div className="text-center py-8">
-            <Coins className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-600 mb-2">
-              Selecciona un Paquete
-            </h3>
-            <p className="text-gray-500">
-              Elige el paquete de créditos que mejor se adapte a tus necesidades
-            </p>
-          </div>
         )}
       </div>
     </div>
