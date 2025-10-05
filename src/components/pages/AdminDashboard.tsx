@@ -531,29 +531,34 @@ function PaymentsTable({
                   </Badge>
                 </TableCell>
 
-                <TableCell>
-                  {(p.estado || p.status) === "pendiente" || (p.estado || p.status) === "pending" ? (
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        className="bg-green-600 hover:bg-green-700 text-white"
-                        onClick={() => handlePaymentAction(p._id, "approve")}
-                      >
-                        <CheckCircle className="h-4 w-4 mr-1" /> Aprobar
-                      </Button>
+               <TableCell>
+  {(() => {
+    const estadoPago = (p.estado || p.status || "").toLowerCase();
 
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handlePaymentAction(p._id, "reject")}
-                      >
-                        <XCircle className="h-4 w-4 mr-1" /> Rechazar
-                      </Button>
-                    </div>
-                  ) : (
-                    <span className="text-gray-400">—</span>
-                  )}
-                </TableCell>
+    return estadoPago === "pendiente" || estadoPago === "pending" ? (
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          className="bg-green-600 hover:bg-green-700 text-white"
+          onClick={() => handlePaymentAction(p._id, "approve")}
+        >
+          <CheckCircle className="h-4 w-4 mr-1" /> Aprobar
+        </Button>
+
+        <Button
+          size="sm"
+          variant="destructive"
+          onClick={() => handlePaymentAction(p._id, "reject")}
+        >
+          <XCircle className="h-4 w-4 mr-1" /> Rechazar
+        </Button>
+      </div>
+    ) : (
+      <span className="text-gray-400">—</span>
+    );
+  })()}
+</TableCell>
+
               </TableRow>
             ))}
           </TableBody>
