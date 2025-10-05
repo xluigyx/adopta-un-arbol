@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Planta } from "../types/Planta"; 
+import { useState, useEffect } from "react";
+import { Planta } from "../types/Planta";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
@@ -15,9 +15,17 @@ interface AddTreeFormProps {
   onSave: (newTree: Planta) => void;
   lat?: number;
   lng?: number;
+  editingTree?: Planta | null;
 }
 
-export function AddTreeForm({ isOpen, onClose, onSave, lat, lng }: AddTreeFormProps) {
+export function AddTreeForm({
+  isOpen,
+  onClose,
+  onSave,
+  lat,
+  lng,
+  editingTree,
+}: AddTreeFormProps) {
   const [formData, setFormData] = useState<Partial<Planta>>({
     nombre: "",
     especie: "",
@@ -29,6 +37,12 @@ export function AddTreeForm({ isOpen, onClose, onSave, lat, lng }: AddTreeFormPr
 
   const [imagen, setImagen] = useState<File | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  useEffect(() => {
+    if (editingTree) {
+      setFormData(editingTree);
+    }
+  }, [editingTree]);
 
   const handleInputChange = (field: keyof Planta, value: any) => {
     setFormData((prev) => ({
@@ -45,52 +59,39 @@ export function AddTreeForm({ isOpen, onClose, onSave, lat, lng }: AddTreeFormPr
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     try {
       const formDataToSend = new FormData();
       formDataToSend.append("nombre", formData.nombre || "");
       formDataToSend.append("especie", formData.especie || "");
       formDataToSend.append("descripcion", formData.descripcion || "");
       formDataToSend.append("estadoactual", formData.estadoactual || "available");
-      formDataToSend.append("latitud", String(lat ?? 0));
-      formDataToSend.append("longitud", String(lng ?? 0));
+      formDataToSend.append("latitud", String(lat ?? formData.latitud ?? 0));
+      formDataToSend.append("longitud", String(lng ?? formData.longitud ?? 0));
       if (imagen) formDataToSend.append("imagen", imagen);
 
-      const res = await fetch("http://localhost:4000/api/planta", {
-        method: "POST",
-        body: formDataToSend,
-      });
+      const url = editingTree
+        ? `http://localhost:4000/api/planta/${editingTree._id}`
+        : "http://localhost:4000/api/planta";
 
+      const method = editingTree ? "PUT" : "POST";
+
+      const res = await fetch(url, { method, body: formDataToSend });
       const data = await res.json();
 
       if (!res.ok) {
-        setMessage({ type: "error", text: data.msg || "❌ Error al registrar árbol" });
+        setMessage({ type: "error", text: data.msg || "Error al guardar árbol" });
         return;
       }
 
-      // ✅ éxito
       onSave(data.planta);
-      setMessage({ type: "success", text: "🌳 Árbol agregado con éxito" });
-
-      // reset form
-      setFormData({
-        nombre: "",
-        especie: "",
-        descripcion: "",
-        estadoactual: "available",
-        latitud: lat ?? 0,
-        longitud: lng ?? 0,
-      });
-      setImagen(null);
-
-      // cerrar después de un rato
+      setMessage({ type: "success", text: data.msg });
       setTimeout(() => {
         onClose();
         setMessage(null);
-      }, 2000);
+      }, 1500);
     } catch (err) {
       console.error("Error al guardar árbol:", err);
-      setMessage({ type: "error", text: "❌ Error de conexión con el servidor" });
+      setMessage({ type: "error", text: "Error de conexión con el servidor" });
     }
   };
 
@@ -102,11 +103,10 @@ export function AddTreeForm({ isOpen, onClose, onSave, lat, lng }: AddTreeFormPr
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-green-800">
             <TreePine className="h-5 w-5 text-green-600" />
-            Agregar Nuevo Árbol
+            {editingTree ? "Editar Árbol" : "Agregar Nuevo Árbol"}
           </DialogTitle>
         </DialogHeader>
 
-        {/* Mensaje de éxito o error */}
         {message && (
           <div
             className={`p-3 rounded-md mb-4 text-sm font-medium ${
@@ -153,15 +153,14 @@ export function AddTreeForm({ isOpen, onClose, onSave, lat, lng }: AddTreeFormPr
             <Input type="file" accept="image/*" onChange={handleFileChange} />
           </div>
 
-          {/* Lat/Lng visibles (readonly) */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Latitud</Label>
-              <Input value={lat ?? ""} readOnly />
+              <Input value={formData.latitud ?? ""} readOnly />
             </div>
             <div>
               <Label>Longitud</Label>
-              <Input value={lng ?? ""} readOnly />
+              <Input value={formData.longitud ?? ""} readOnly />
             </div>
           </div>
 
