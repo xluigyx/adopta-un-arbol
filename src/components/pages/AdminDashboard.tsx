@@ -102,34 +102,34 @@ interface AdminDashboardProps {
 
   // 🟢 NUEVO: aprobar o rechazar pago
   const handlePaymentAction = async (id: string, action: "approve" | "reject") => {
-    try {
-      const res = await fetch(`http://localhost:4000/api/admin/payments/${id}/${action}`, {
-        method: "PUT",
-      });
-      const data = await res.json();
+  try {
+    const estado = action === "approve" ? "Aprobado" : "Rechazado";
 
-      if (data.success) {
-        toast.success(
-          action === "approve"
-            ? "✅ Pago aprobado correctamente"
-            : "❌ Pago rechazado correctamente"
-        );
-        // refrescar lista
-        setPaymentRequests(prev =>
-          prev.map(p =>
-            p._id === id
-              ? { ...p, status: action === "approve" ? "approved" : "rejected" }
-              : p
-          )
-        );
-      } else {
-        toast.error("Error al actualizar el pago");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Error de conexión con el servidor");
+    const res = await fetch(`http://localhost:4000/api/pago/${id}/estado`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ estado }),
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      toast.success(
+        action === "approve"
+          ? "✅ Pago aprobado correctamente"
+          : "❌ Pago rechazado correctamente"
+      );
+    } else {
+      toast.error(data.message || "Error al actualizar el pago");
     }
-  };
+  } catch (err) {
+    console.error("❌ Error:", err);
+    toast.error("Error de conexión con el servidor");
+  }
+};
+
 
   // 🟢 NUEVO: detectar nuevos pagos y notificar
   useEffect(() => {
