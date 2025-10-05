@@ -65,6 +65,20 @@ router.post("/", upload.single("imagen"), async (req, res) => {
     res.status(500).json({ msg: "Error al registrar árbol" });
   }
 });
+// ✅ Obtener los árboles adoptados por un usuario
+router.get("/adoptados/:usuarioId", async (req, res) => {
+  try {
+    const { usuarioId } = req.params;
+
+    const plantas = await Planta.find({ adoptante: usuarioId })
+      .select("nombre especie descripcion imagen estadoactual latitud longitud fechaPlantacion");
+
+    res.json(plantas);
+  } catch (error) {
+    console.error("❌ Error al obtener árboles adoptados:", error);
+    res.status(500).json({ msg: "Error al obtener árboles adoptados" });
+  }
+});
 
 /* =======================================
    ✅ ADOPTAR UN ÁRBOL (RESTA CRÉDITO)
@@ -107,7 +121,7 @@ router.patch("/adopt/:id", async (req, res) => {
     planta.adoptante = usuario._id;
     await planta.save();
 
-    usuario.puntostotales -= 1; // 🔹 restamos un crédito
+    usuario.puntostotales -= 40; // 🔹 restamos un crédito
     await usuario.save();
 
     res.json({
