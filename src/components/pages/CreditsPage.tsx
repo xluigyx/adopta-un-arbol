@@ -1,13 +1,31 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { Label } from '../ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
-import { Textarea } from '../ui/textarea';
-import { 
-  Coins, QrCode, Check, Gift, Star, Upload, Camera, X, AlertTriangle 
-} from 'lucide-react';
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../ui/card";
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
+import { Label } from "../ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
+import { Textarea } from "../ui/textarea";
+import {
+  Coins,
+  QrCode,
+  Check,
+  Gift,
+  Star,
+  Upload,
+  Camera,
+  X,
+  AlertTriangle,
+} from "lucide-react";
 
 interface CreditPackage {
   id: string;
@@ -21,7 +39,6 @@ interface CreditPackage {
 }
 
 interface CreditsPageProps {
-  onNavigate?: (view: string) => void; // 🔹 Agregado para navegación
   user: {
     _id: string;
     name: string;
@@ -29,20 +46,22 @@ interface CreditsPageProps {
   };
 }
 
-
 export function CreditsPage({ user }: CreditsPageProps) {
-  const [selectedPackage, setSelectedPackage] = useState<string>('');
+  const [selectedPackage, setSelectedPackage] = useState<string>("");
   const [showPaymentProof, setShowPaymentProof] = useState(false);
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
-  const [paymentProofPreview, setPaymentProofPreview] = useState<string | null>(null);
-  const [paymentNotes, setPaymentNotes] = useState('');
+  const [paymentProofPreview, setPaymentProofPreview] = useState<string | null>(
+    null
+  );
+  const [paymentNotes, setPaymentNotes] = useState("");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-
-  // 🔹 Estados para QR del admin
   const [adminQR, setAdminQR] = useState<string | null>(null);
   const [isLoadingQR, setIsLoadingQR] = useState(true);
 
-  // 🔹 Cargar QR del admin desde el backend
+  // 🔹 Nuevos modales visuales
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+
   useEffect(() => {
     const fetchAdminQR = async () => {
       try {
@@ -60,27 +79,29 @@ export function CreditsPage({ user }: CreditsPageProps) {
     fetchAdminQR();
   }, []);
 
-  // 🔹 Paquetes en bolivianos
   const creditPackages: CreditPackage[] = [
-    { id: 'starter', name: 'Paquete Inicial', credits: 10, price: 35, description: 'Perfecto para adoptar tu primer árbol' },
-    { id: 'family', name: 'Paquete Familiar', credits: 25, price: 80, originalPrice: 100, bonus: 3, description: 'Ideal para familias comprometidas con el ambiente' },
-    { id: 'community', name: 'Paquete Comunidad', credits: 50, price: 125, originalPrice: 160, popular: true, bonus: 8, description: 'Para comunidades que quieren hacer un gran impacto' },
-    { id: 'enterprise', name: 'Paquete Empresa', credits: 100, price: 200, originalPrice: 300, bonus: 20, description: 'Para empresas con responsabilidad social' }
+    { id: "starter", name: "Paquete Inicial", credits: 10, price: 35, description: "Perfecto para adoptar tu primer árbol" },
+    { id: "family", name: "Paquete Familiar", credits: 25, price: 80, originalPrice: 100, bonus: 3, description: "Ideal para familias comprometidas con el ambiente" },
+    { id: "community", name: "Paquete Comunidad", credits: 50, price: 125, originalPrice: 160, popular: true, bonus: 8, description: "Para comunidades que quieren hacer un gran impacto" },
+    { id: "enterprise", name: "Paquete Empresa", credits: 100, price: 200, originalPrice: 300, bonus: 20, description: "Para empresas con responsabilidad social" },
   ];
 
-  const selectedPkg = creditPackages.find(pkg => pkg.id === selectedPackage);
+  const selectedPkg = creditPackages.find((pkg) => pkg.id === selectedPackage);
 
   const handlePurchase = () => {
     if (!selectedPkg) return;
     setShowPaymentProof(true);
   };
 
-  const handlePaymentProofUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePaymentProofUpload = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (file) {
       setPaymentProof(file);
       const reader = new FileReader();
-      reader.onload = (e) => setPaymentProofPreview(e.target?.result as string);
+      reader.onload = (e) =>
+        setPaymentProofPreview(e.target?.result as string);
       reader.readAsDataURL(file);
     }
   };
@@ -90,12 +111,10 @@ export function CreditsPage({ user }: CreditsPageProps) {
     setPaymentProofPreview(null);
   };
 
-  // 🔹 Enviar comprobante al backend (y notificar admin)
   const submitPaymentProof = async () => {
     if (!paymentProof || !selectedPkg) return;
 
     setIsProcessingPayment(true);
-    setShowPaymentProof(false);
 
     try {
       const formData = new FormData();
@@ -117,240 +136,236 @@ export function CreditsPage({ user }: CreditsPageProps) {
       const data = await res.json();
 
       if (!data.success) throw new Error(data.message);
-      alert("✅ Comprobante enviado. El administrador revisará tu pago.");
+
+      // ✅ Modal visual de éxito
+      setShowSuccessModal(true);
+      setShowPaymentProof(false);
     } catch (error) {
       console.error("Error al subir comprobante:", error);
-      alert("❌ Error al enviar el comprobante. Intenta nuevamente.");
+      setShowErrorModal(true);
     } finally {
       setIsProcessingPayment(false);
       setPaymentProof(null);
       setPaymentProofPreview(null);
-      setPaymentNotes('');
+      setPaymentNotes("");
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-green-900 mb-2">Comprar Créditos</h1>
-          <p className="text-gray-600 mb-4">
-            Los créditos te permiten adoptar y cuidar árboles en tu comunidad
+    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-green-900">
+            Comprar Créditos
+          </h1>
+          <p className="text-gray-600 mt-2 mb-4">
+            Usa tus créditos para adoptar y cuidar árboles 🌱
           </p>
           <div className="inline-flex items-center gap-2 bg-green-100 px-4 py-2 rounded-full">
             <Coins className="h-5 w-5 text-green-600" />
             <span className="text-green-800 font-medium">
-              Tienes {user.credits} créditos disponibles
+              {user.credits} créditos disponibles
             </span>
           </div>
         </div>
 
-        {/* How Credits Work */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Gift className="h-5 w-5 text-green-600" />
-              ¿Cómo funcionan los créditos?
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-3 gap-6">
-              {[1, 2, 3].map((num) => (
-                <div key={num} className="text-center space-y-2">
-                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                    <span className="text-green-600 font-bold">{num}</span>
-                  </div>
-                  <h3 className="font-semibold text-green-900">
-                    {num === 1 ? 'Compra Créditos' : num === 2 ? 'Adopta Árboles' : 'Recibe Actualizaciones'}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    {num === 1 ? 'Elige el paquete que mejor se adapte a tus necesidades' :
-                    num === 2 ? 'Usa 1 crédito para adoptar cada árbol que te guste' :
-                    'Mantente informado sobre el crecimiento de tus árboles'}
-                  </p>
+        {/* Lista de paquetes */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          {creditPackages.map((pkg) => (
+            <Card
+              key={pkg.id}
+              className={`cursor-pointer transition-all ${
+                selectedPackage === pkg.id
+                  ? "ring-2 ring-green-500 shadow-lg"
+                  : "hover:shadow-md"
+              }`}
+              onClick={() => setSelectedPackage(pkg.id)}
+            >
+              {pkg.popular && (
+                <div className="bg-green-500 text-white text-center py-1 text-sm font-medium rounded-t-lg">
+                  <Star className="inline h-4 w-4 mr-1" />
+                  Más Popular
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Credit Packages */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-green-900 mb-6">Elige tu Paquete</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {creditPackages.map((pkg) => (
-              <Card
-                key={pkg.id}
-                className={`cursor-pointer transition-all ${
-                  selectedPackage === pkg.id
-                    ? "ring-2 ring-green-500 shadow-lg"
-                    : "hover:shadow-md"
-                } ${pkg.popular ? "border-green-300" : ""}`}
-                onClick={() => setSelectedPackage(pkg.id)}
-              >
-                {pkg.popular && (
-                  <div className="bg-green-500 text-white text-center py-1 text-sm font-medium rounded-t-lg">
-                    <Star className="inline h-4 w-4 mr-1" />
-                    Más Popular
+              )}
+              <CardHeader className="text-center">
+                <CardTitle className="text-lg text-green-900">
+                  {pkg.name}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-center space-y-3">
+                <p className="text-gray-600 text-sm">{pkg.description}</p>
+                <div className="text-2xl font-bold text-green-700">
+                  Bs {pkg.price}
+                </div>
+                <div className="text-gray-800 text-sm">
+                  {pkg.credits} créditos{" "}
+                  {pkg.bonus && (
+                    <span className="text-green-600 font-semibold">
+                      (+{pkg.bonus} bonus)
+                    </span>
+                  )}
+                </div>
+                {selectedPackage === pkg.id && (
+                  <div className="flex justify-center">
+                    <Check className="h-6 w-6 text-green-500" />
                   </div>
                 )}
-                <CardHeader className="text-center">
-                  <CardTitle className="text-lg text-green-900">{pkg.name}</CardTitle>
-                  <div className="space-y-2">
-                    <div className="text-3xl font-bold text-green-600">
-                      Bs {pkg.price}
-                      {pkg.originalPrice && (
-                        <span className="text-lg text-gray-400 line-through ml-2">
-                          Bs {pkg.originalPrice}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-2xl font-semibold text-green-900">
-                      {pkg.credits} créditos
-                      {pkg.bonus && (
-                        <span className="text-sm text-green-600 block">+ {pkg.bonus} bonus</span>
-                      )}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-gray-600 text-center">{pkg.description}</p>
-                  <div className="text-center">
-                    {pkg.originalPrice && (
-                      <Badge className="bg-green-100 text-green-800 mb-2">
-                        Ahorra Bs {(pkg.originalPrice - pkg.price).toFixed(2)}
-                      </Badge>
-                    )}
-                    <div className="text-xs text-gray-500">
-                      Bs {(pkg.price / pkg.credits).toFixed(2)} por crédito
-                    </div>
-                  </div>
-                  {selectedPackage === pkg.id && (
-                    <div className="flex justify-center">
-                      <Check className="h-6 w-6 text-green-500" />
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
-        {/* Purchase Summary */}
+        {/* Resumen y modal QR */}
         {selectedPackage && selectedPkg && (
-          <Card>
+          <Card className="shadow-md">
             <CardHeader>
-              <CardTitle>Resumen de Compra</CardTitle>
+              <CardTitle>Resumen de compra</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                <div className="flex justify-between">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex justify-between text-sm">
                   <span>Paquete:</span>
-                  <span className="font-medium">{selectedPkg.name}</span>
+                  <span>{selectedPkg.name}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between text-sm">
                   <span>Créditos:</span>
-                  <span className="font-medium">{selectedPkg.credits}</span>
+                  <span>{selectedPkg.credits}</span>
                 </div>
-                {selectedPkg.bonus && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Bonus:</span>
-                    <span className="font-medium">+{selectedPkg.bonus}</span>
-                  </div>
-                )}
-                <div className="border-t pt-2 flex justify-between font-bold">
-                  <span>Total a pagar:</span>
+                <div className="flex justify-between text-sm font-bold border-t pt-2">
+                  <span>Total:</span>
                   <span>Bs {selectedPkg.price}</span>
                 </div>
               </div>
 
-              <Button className="w-full" size="lg" onClick={handlePurchase}>
-                <QrCode className="mr-2 h-5 w-5" /> Pagar con Código QR
+              <Button
+                className="w-full bg-green-600 hover:bg-green-700 text-white"
+                onClick={handlePurchase}
+              >
+                <QrCode className="mr-2 h-4 w-4" /> Pagar con QR
               </Button>
 
-              {/* Dialog QR */}
+              {/* Modal de pago QR */}
               <Dialog open={showPaymentProof} onOpenChange={setShowPaymentProof}>
-               <DialogContent
-  className="
-    w-[95vw] sm:w-[600px] lg:w-[700px]
-    max-h-[90vh] overflow-y-auto
-    rounded-2xl p-6
-  "
->
-
+                <DialogContent className="w-[95vw] sm:w-[600px] max-h-[90vh] overflow-y-auto rounded-2xl p-6 border-t-8 border-green-600 shadow-xl">
                   <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                      <QrCode className="h-5 w-5 text-purple-600" /> Pago con Código QR
+                    <DialogTitle className="flex items-center gap-2 text-green-800">
+                      <QrCode className="h-5 w-5 text-green-600" />
+                      Pago con QR — {selectedPkg.name}
                     </DialogTitle>
                   </DialogHeader>
-                  <div className="space-y-6">
 
-                    {/* Mostrar QR del admin */}
+                  <div className="space-y-6">
+                    {/* QR */}
                     <div className="text-center">
                       {isLoadingQR ? (
                         <p className="text-gray-500">Cargando código QR...</p>
                       ) : adminQR ? (
                         <>
                           <p className="text-gray-700 mb-2">
-                            Escanea este código QR para pagar Bs {selectedPkg.price}
+                            Escanea este QR y paga{" "}
+                            <strong>Bs {selectedPkg.price}</strong>
                           </p>
                           <img
                             src={adminQR}
-                            alt="QR del administrador"
-                            className="w-56 h-56 mx-auto rounded-lg shadow-md border border-gray-200 object-contain"
+                            alt="QR"
+                            className="w-64 h-64 mx-auto rounded-lg border-2 border-green-200 shadow-lg object-contain"
                           />
                         </>
                       ) : (
-                        <p className="text-red-500">No hay QR disponible. Contacta al administrador.</p>
+                        <p className="text-red-500">
+                          No hay QR disponible. Contacta al administrador.
+                        </p>
                       )}
-                    </div>
-
-                    {/* Instrucciones */}
-                    <div className="bg-purple-50 p-4 rounded-lg flex items-start gap-3">
-                      <AlertTriangle className="h-5 w-5 text-purple-600 mt-0.5" />
-                      <div>
-                        <h4 className="font-medium text-purple-900 mb-1">Instrucciones</h4>
-                        <p className="text-sm text-purple-700 mb-1">1. Escanea el QR y paga Bs {selectedPkg?.price}</p>
-                        <p className="text-sm text-purple-700 mb-1">2. Toma una captura o foto del comprobante</p>
-                        <p className="text-sm text-purple-700">3. Sube la imagen aquí</p>
-                      </div>
                     </div>
 
                     {/* Subir comprobante */}
                     {!paymentProofPreview ? (
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                        <Camera className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-600">Subir comprobante de pago</p>
-                        <label htmlFor="proof-upload" className="mt-4 inline-flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-md cursor-pointer hover:bg-purple-700">
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50 transition">
+                        <Camera className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+                        <p className="text-gray-600">
+                          Sube tu comprobante de pago
+                        </p>
+                        <label
+                          htmlFor="proof-upload"
+                          className="mt-3 inline-flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md cursor-pointer hover:bg-green-700"
+                        >
                           <Upload className="h-4 w-4" /> Seleccionar Archivo
                         </label>
-                        <input id="proof-upload" type="file" accept="image/*" onChange={handlePaymentProofUpload} className="hidden" />
+                        <input
+                          id="proof-upload"
+                          type="file"
+                          accept="image/*"
+                          onChange={handlePaymentProofUpload}
+                          className="hidden"
+                        />
                       </div>
                     ) : (
                       <div className="relative">
-                        <img src={paymentProofPreview} alt="Comprobante" className="w-full max-w-md mx-auto rounded-lg shadow-md" />
-                        <Button variant="destructive" size="sm" onClick={removePaymentProof} className="absolute top-2 right-2">
+                        <img
+                          src={paymentProofPreview}
+                          alt="Comprobante"
+                          className="w-full rounded-lg shadow-md"
+                        />
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={removePaymentProof}
+                          className="absolute top-2 right-2"
+                        >
                           <X className="h-4 w-4" />
                         </Button>
                       </div>
                     )}
 
-                    <div>
-                      <Label htmlFor="payment-notes">Notas (Opcional)</Label>
-                      <Textarea
-                        id="payment-notes"
-                        placeholder="Número de transacción, comentarios..."
-                        value={paymentNotes}
-                        onChange={(e) => setPaymentNotes(e.target.value)}
-                        rows={3}
-                      />
-                    </div>
-
-                    <Button onClick={submitPaymentProof} disabled={!paymentProof} className="w-full bg-purple-600 hover:bg-purple-700 text-white">
-                      <Upload className="mr-2 h-4 w-4" /> Enviar Comprobante
+                    <Button
+                      onClick={submitPaymentProof}
+                      disabled={!paymentProof || isProcessingPayment}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <Upload className="mr-2 h-4 w-4" />{" "}
+                      {isProcessingPayment ? "Enviando..." : "Enviar comprobante"}
                     </Button>
                   </div>
+                </DialogContent>
+              </Dialog>
+
+              {/* Modal ÉXITO */}
+              <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+                <DialogContent className="rounded-2xl p-6 text-center bg-white border-t-8 border-green-500 shadow-xl">
+                  <Check className="w-16 h-16 text-green-500 mx-auto mb-4 animate-bounce" />
+                  <h2 className="text-2xl font-semibold text-green-800 mb-2">
+                    ¡Pago enviado con éxito!
+                  </h2>
+                  <p className="text-gray-600 mb-4">
+                    Tu comprobante fue recibido. El administrador revisará tu
+                    pago pronto 🌱
+                  </p>
+                  <Button
+                    className="bg-green-600 hover:bg-green-700"
+                    onClick={() => setShowSuccessModal(false)}
+                  >
+                    Entendido
+                  </Button>
+                </DialogContent>
+              </Dialog>
+
+              {/* Modal ERROR */}
+              <Dialog open={showErrorModal} onOpenChange={setShowErrorModal}>
+                <DialogContent className="rounded-2xl p-6 text-center bg-white border-t-8 border-red-500 shadow-xl">
+                  <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+                  <h2 className="text-2xl font-semibold text-red-800 mb-2">
+                    Error al enviar
+                  </h2>
+                  <p className="text-gray-600 mb-4">
+                    Hubo un problema al subir tu comprobante. Inténtalo
+                    nuevamente.
+                  </p>
+                  <Button
+                    variant="destructive"
+                    onClick={() => setShowErrorModal(false)}
+                  >
+                    Cerrar
+                  </Button>
                 </DialogContent>
               </Dialog>
             </CardContent>
