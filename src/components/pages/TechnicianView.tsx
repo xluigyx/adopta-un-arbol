@@ -23,9 +23,16 @@ interface Technician {
   _id: string;
   name: string;
   email: string;
+  role: "technician"|"admin"|"user";
+  joinDate: string;
+  credits: number;
 }
 
-export function TechnicianView({ user }: { user: Technician }) {
+interface TechnicianViewProps {
+  user: Technician;
+  onNavigate?: (view: string) => void;
+}
+export function TechnicianView({ user,onNavigate }: TechnicianViewProps) {
   const [tasks, setTasks] = useState<RiegoTask[]>([]);
   const [selectedTask, setSelectedTask] = useState<RiegoTask | null>(null);
   const [loading, setLoading] = useState(true);
