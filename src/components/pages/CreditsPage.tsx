@@ -39,14 +39,18 @@ interface CreditPackage {
 }
 
 interface CreditsPageProps {
+  onNavigate: (view: string) => void;
   user: {
     _id: string;
     name: string;
+    email: string;
+    role: "admin" | "technician" | "user";
+    joinDate: string;
     credits: number;
   };
 }
 
-export function CreditsPage({ user }: CreditsPageProps) {
+export function CreditsPage({onNavigate, user}: CreditsPageProps) {
   const [selectedPackage, setSelectedPackage] = useState<string>("");
   const [showPaymentProof, setShowPaymentProof] = useState(false);
   const [paymentProof, setPaymentProof] = useState<File | null>(null);

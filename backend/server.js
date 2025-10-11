@@ -6,11 +6,12 @@ import path from "path";
 import { fileURLToPath } from "url";
 import authRoutes from "./routes/auth.js";
 import adminRoutes from "./routes/admin.js";
-import tecnicoRoutes from "./routes/tecnico.js";
 import plantaRoutes from "./routes/planta.js";
 import pagoRoutes from "./routes/pagos.js";
 import qrRoutes from "./routes/qr.js"; 
 import usuarioRoutes from "./routes/usuario.js";
+import tecnicoRoutes from "./routes/tecnico.js";
+
 
 
 dotenv.config();
@@ -32,7 +33,7 @@ app.use("/api/planta", plantaRoutes);
 app.use("/api/pago", pagoRoutes);
 app.use("/api/qr", qrRoutes);
 app.use("/api/usuarios", usuarioRoutes);
-
+app.use("/api/tecnico", tecnicoRoutes); // Rutas para técnicos
 
 // Conectar a MongoDB
 mongoose

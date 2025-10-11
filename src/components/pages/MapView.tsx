@@ -17,7 +17,7 @@ import {
   MapPin,
   TreePine,
   Heart,
-  AlertTriangle,
+  Droplets,
   CheckCircle,
   Plus,
   Coins,
@@ -30,10 +30,22 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import "leaflet-extra-markers";
 import { toast } from "sonner";
-
-import { AddTreeForm } from "./AddTreeForm";
-import { Planta } from "../types/Planta";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
+import { AddTreeForm } from "./AddTreeForm";
+
+// 🌳 Interfaz de planta
+interface Planta {
+  _id: string;
+  nombre: string;
+  especie: string;
+  descripcion?: string;
+  estadoactual: "available" | "adopted" | "maintenance";
+  latitud: number;
+  longitud: number;
+  direccion?: string;
+  imagen?: string;
+  adoptante?: string;
+}
 
 interface MapViewProps {
   onNavigate: (view: string) => void;
@@ -41,11 +53,13 @@ interface MapViewProps {
     _id: string;
     name: string;
     email: string;
-    role: string;
+    role: "admin" | "technician" | "user";
+    joinDate: string;
     credits: number;
   };
 }
 
+// 🔹 Manejador de clicks en el mapa (solo admin)
 function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number) => void }) {
   useMapEvents({
     click(e) {
@@ -71,11 +85,13 @@ export function MapView({ onNavigate, user }: MapViewProps) {
         setTrees(data);
       } catch (err) {
         console.error("❌ Error al obtener plantas:", err);
+        toast.error("Error al cargar árboles desde el servidor.");
       }
     };
     fetchTrees();
   }, []);
 
+  // 🔹 Filtrar según estado
   const filteredTrees =
     filter === "all" ? trees : trees.filter((tree) => tree.estadoactual === filter);
 
@@ -101,23 +117,10 @@ export function MapView({ onNavigate, user }: MapViewProps) {
     }),
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case "available":
-        return "Disponible";
-      case "adopted":
-        return "Adoptado";
-      case "maintenance":
-        return "Mantenimiento";
-      default:
-        return status;
-    }
-  };
-
   // 💚 Adoptar árbol
   const handleAdoptTree = async (treeId: string) => {
     if (!user?._id) {
-      toast.error("No se encontró el usuario en sesión.");
+      toast.error("Debes iniciar sesión para adoptar.");
       return;
     }
 
@@ -130,20 +133,18 @@ export function MapView({ onNavigate, user }: MapViewProps) {
 
       const data = await res.json();
 
-      // 🚫 Créditos insuficientes
       if (!res.ok && data.msg?.includes("créditos suficientes")) {
-        toast.warning(`⚠️ ${data.msg}`, {
+        toast.warning(data.msg, {
           description: "Serás redirigido para recargar tus créditos 💰",
         });
         setTimeout(() => onNavigate("credits"), 3000);
         return;
       }
 
-      if (!res.ok) throw new Error(data.msg || "Error al adoptar el árbol");
+      if (!res.ok) throw new Error(data.msg || "Error al adoptar");
 
       toast.success(data.msg || "🌳 Árbol adoptado con éxito");
 
-      // 🔹 Actualizar árbol en mapa
       setTrees((prev) =>
         prev.map((t) =>
           t._id === treeId ? { ...t, estadoactual: "adopted" } : t
@@ -151,8 +152,42 @@ export function MapView({ onNavigate, user }: MapViewProps) {
       );
       setSelectedTree(null);
     } catch (error) {
-      console.error("Error al adoptar árbol:", error);
+      console.error("Error al adoptar:", error);
       toast.error("Error al adoptar el árbol");
+    }
+  };
+
+  // 💧 Solicitar riego
+  const handleWaterRequest = async (tree: Planta) => {
+    try {
+      if (!user?._id) {
+        toast.warning("⚠️ Debes iniciar sesión para solicitar un riego.");
+        return;
+      }
+
+      const res = await fetch("http://localhost:4000/api/tecnico/solicitar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requesterId: user._id,
+          requesterName: user.name,
+          treeId: tree._id,
+          treeName: tree.nombre,
+          location: tree.direccion || "Ubicación desconocida",
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || "Error al solicitar riego");
+
+      toast.success("💧 Solicitud de riego enviada al técnico");
+
+      if (data.creditosRestantes !== undefined) {
+        user.credits = data.creditosRestantes;
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+    } catch (err: any) {
+      toast.error("❌ " + err.message);
     }
   };
 
@@ -214,7 +249,7 @@ export function MapView({ onNavigate, user }: MapViewProps) {
             <p className="text-gray-600">
               {user?.role === "admin"
                 ? "Gestiona, edita y agrega árboles al sistema"
-                : "Explora y adopta árboles en tu ciudad 🌱"}
+                : "Explora, adopta o solicita riego 🌱"}
             </p>
           </div>
 
@@ -289,13 +324,24 @@ export function MapView({ onNavigate, user }: MapViewProps) {
                     />
                   </div>
 
+                  {/* Botones según rol */}
                   {selectedTree.estadoactual === "available" && user?.role !== "admin" && (
                     <Button
                       className="w-full bg-green-600 hover:bg-green-700"
                       onClick={() => handleAdoptTree(selectedTree._id)}
                     >
                       <Heart className="mr-2 h-4 w-4" />
-                      Adoptar este árbol
+                      Adoptar este árbol (35 créditos)
+                    </Button>
+                  )}
+
+                  {selectedTree.estadoactual === "adopted" && user?.role === "user" && (
+                    <Button
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                      onClick={() => handleWaterRequest(selectedTree)}
+                    >
+                      <Droplets className="mr-2 h-4 w-4" />
+                      Solicitar riego (10 créditos)
                     </Button>
                   )}
 
@@ -319,6 +365,7 @@ export function MapView({ onNavigate, user }: MapViewProps) {
                   )}
                 </div>
 
+                {/* Info árbol */}
                 <div className="space-y-4">
                   <div>
                     <h4 className="font-semibold text-green-900 mb-2">
@@ -331,14 +378,7 @@ export function MapView({ onNavigate, user }: MapViewProps) {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Estado:</span>
-                        <Badge>{getStatusText(selectedTree.estadoactual)}</Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Costo adopción:</span>
-                        <span className="font-semibold text-green-700 flex items-center gap-1">
-                          <Coins className="h-4 w-4 text-green-600" />
-                          {selectedTree.costoAdopcion || 35} créditos
-                        </span>
+                        <Badge>{selectedTree.estadoactual}</Badge>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Descripción:</span>

@@ -17,7 +17,7 @@ import { StatisticsPage } from "./components/pages/StatisticsPage";
 export default function App() {
   const [currentView, setCurrentView] = useState("home");
 
-  // ✅ Definición del usuario con _id obligatorio
+  // ✅ Usuario actual
   const [currentUser, setCurrentUser] = useState<{
     _id: string;
     name: string;
@@ -27,7 +27,7 @@ export default function App() {
     credits: number;
   } | null>(null);
 
-  // 🔹 Manejar navegación entre vistas
+  // 🔹 Cambiar de vista
   const handleNavigate = (view: string) => {
     if (view === "login" || view === "register") {
       setCurrentView(view);
@@ -38,6 +38,7 @@ export default function App() {
       setCurrentUser(null);
       localStorage.removeItem("token");
       localStorage.removeItem("rol");
+      localStorage.removeItem("user");
       setCurrentView("home");
       return;
     }
@@ -53,7 +54,7 @@ export default function App() {
           break;
         case "user":
           if (
-            ["map", "species", "profile", "credits", "history"].includes(view)
+            ["map", "species", "profile", "credits", "history", "statistics"].includes(view)
           )
             setCurrentView(view);
           break;
@@ -65,77 +66,71 @@ export default function App() {
     }
   };
 
-  // 🔹 Manejar login real con backend
-  // 🔹 Manejar login real con backend
-const handleLogin = async (
-  userType: "user" | "admin" | "technician",
-  credentials: { email: string; password: string }
-) => {
-  try {
-    const res = await fetch("http://localhost:4000/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(credentials),
-    });
+  // 🔹 Login con backend real
+  const handleLogin = async (
+    userType: "user" | "admin" | "technician",
+    credentials: { email: string; password: string }
+  ) => {
+    try {
+      const res = await fetch("http://localhost:4000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(credentials),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.msg || "Error al iniciar sesión");
+        return;
+      }
 
-    if (!res.ok) {
-      alert(data.msg || "Error al iniciar sesión");
-      return;
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("rol", data.usuario.rol);
+
+      const mappedRole =
+        data.usuario.rol === "Administrador"
+          ? "admin"
+          : data.usuario.rol === "Técnico"
+          ? "technician"
+          : "user";
+
+      const loggedUser = {
+        _id: data.usuario.id || data.usuario._id || data.usuario?.Id || "",
+        name: data.usuario.nombre,
+        email: data.usuario.correo,
+        role: mappedRole as "admin" | "technician" | "user",
+        joinDate: new Date().toISOString().split("T")[0],
+        credits: 10,
+      };
+
+      if (!loggedUser._id) {
+        console.warn("⚠️ No se recibió _id del backend. Revisa tu endpoint /login.");
+      }
+
+      setCurrentUser(loggedUser);
+      localStorage.setItem("user", JSON.stringify(loggedUser));
+
+      switch (mappedRole) {
+        case "admin":
+          setCurrentView("admin-dashboard");
+          break;
+        case "technician":
+          setCurrentView("technician-dashboard");
+          break;
+        case "user":
+          setCurrentView("map");
+          break;
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error de conexión con el servidor");
     }
+  };
 
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("rol", data.usuario.rol);
-
-    const mappedRole =
-      data.usuario.rol === "Administrador"
-        ? "admin"
-        : data.usuario.rol === "Técnico"
-        ? "technician"
-        : "user";
-
-    // ✅ Incluye el _id real del usuario del backend (para los pagos)
-    const loggedUser = {
-      _id: data.usuario.id || data.usuario._id || data.usuario?.Id || "", // soporta diferentes claves
-      name: data.usuario.nombre,
-      email: data.usuario.correo,
-      role: mappedRole as "admin" | "technician" | "user",
-      joinDate: new Date().toISOString().split("T")[0],
-      credits: 10,
-    };
-
-    // ⚠️ Validar antes de guardar
-    if (!loggedUser._id) {
-      console.warn("⚠️ No se recibió _id del backend. Revisa tu endpoint de /login.");
-    }
-
-    // 🔹 Guardar usuario en memoria y almacenamiento local
-    setCurrentUser(loggedUser);
-    localStorage.setItem("user", JSON.stringify(loggedUser));
-
-    switch (mappedRole) {
-      case "admin":
-        setCurrentView("admin-dashboard");
-        break;
-      case "technician":
-        setCurrentView("technician-dashboard");
-        break;
-      case "user":
-        setCurrentView("map");
-        break;
-    }
-  } catch (err) {
-    console.error(err);
-    alert("Error de conexión con el servidor");
-  }
-};
-
-
-  // 🔹 Manejar registro
+  // 🔹 Registro temporal
   const handleRegister = (userData: any) => {
     const newUser = {
-      _id: "temp-id", // Valor temporal hasta que venga del backend
+      _id: "temp-id",
       name: userData.name,
       email: userData.email,
       role: "user" as const,
@@ -147,12 +142,10 @@ const handleLogin = async (
     setCurrentView("map");
   };
 
-  // 🔹 Renderizar vistas
+  // 🔹 Render según vista actual
   const renderCurrentView = () => {
     if (currentView === "login") {
-      return (
-        <LoginPage onNavigate={handleNavigate} onLogin={handleLogin} />
-      );
+      return <LoginPage onNavigate={handleNavigate} onLogin={handleLogin} />;
     }
     if (currentView === "register") {
       return (
@@ -160,6 +153,7 @@ const handleLogin = async (
       );
     }
 
+    // Si no hay usuario
     if (!currentUser) {
       switch (currentView) {
         case "home":
@@ -173,35 +167,31 @@ const handleLogin = async (
       }
     }
 
+    // Si hay usuario logueado
     switch (currentUser.role) {
       case "admin":
         switch (currentView) {
           case "admin-dashboard":
             return <AdminDashboard onNavigate={handleNavigate} />;
           case "map":
-            return (
-              <MapView onNavigate={handleNavigate} user={currentUser} />
-            );
+            return <MapView onNavigate={handleNavigate} user={currentUser} />;
           default:
             return <AdminDashboard onNavigate={handleNavigate} />;
         }
 
-      // 🔧 Técnicos (si lo reactivas más adelante)
-      // case "technician":
-      //   switch (currentView) {
-      //     case "technician-dashboard":
-      //       return (
-      //         <TechnicianView onNavigate={handleNavigate} user={currentUser} />
-      //       );
-      //     case "map":
-      //       return (
-      //         <MapView onNavigate={handleNavigate} user={currentUser} />
-      //       );
-      //     default:
-      //       return (
-      //         <TechnicianView onNavigate={handleNavigate} user={currentUser} />
-      //       );
-      //   }
+      case "technician":
+        switch (currentView) {
+          case "technician-dashboard":
+            return (
+              <TechnicianView onNavigate={handleNavigate} user={currentUser} />
+            );
+          case "map":
+            return <MapView onNavigate={handleNavigate} user={currentUser} />;
+          default:
+            return (
+              <TechnicianView onNavigate={handleNavigate} user={currentUser} />
+            );
+        }
 
       case "user":
         switch (currentView) {
@@ -210,22 +200,15 @@ const handleLogin = async (
           case "species":
             return <SpeciesPage onNavigate={handleNavigate} />;
           case "profile":
-            return (
-              <UserProfile onNavigate={handleNavigate} user={currentUser} />
-            );
+            return <UserProfile onNavigate={handleNavigate} user={currentUser} />;
           case "credits":
-            return (
-              <CreditsPage
-                onNavigate={handleNavigate}
-                user={currentUser}
-              />
-            );
+            return <CreditsPage onNavigate={handleNavigate} user={currentUser} />;
           case "history":
             return <HistoryPage onNavigate={handleNavigate} />;
           case "statistics":
             return <StatisticsPage onNavigate={handleNavigate} />;
           default:
-            return <MapView onNavigate={handleNavigate}  />;
+            return <MapView onNavigate={handleNavigate} user={currentUser} />;
         }
 
       default:
@@ -251,7 +234,6 @@ const handleLogin = async (
 
       {showHeaderFooter && <Footer onNavigate={handleNavigate} />}
 
-      {/* ✅ Toaster global para notificaciones */}
       <Toaster position="top-right" richColors />
     </div>
   );
