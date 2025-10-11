@@ -13,4 +13,5 @@ export interface Planta {
   adoptante?: string;
   imagen?: string;
   categoria?: string;
+  riegoActivo?: boolean;
 }

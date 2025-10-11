@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import Planta from "../models/Planta.js";
+import Riego from "../models/Riego.js";
 
 const router = express.Router();
 
@@ -28,15 +29,36 @@ const upload = multer({ storage });
 /* ======================================================
    📍 1️⃣ Obtener todas las plantas
 ====================================================== */
+// ✅ Obtener todas las plantas con estado de riego actualizado
 router.get("/", async (req, res) => {
   try {
     const plantas = await Planta.find();
-    res.json(plantas);
-  } catch (error) {
-    console.error("❌ Error al obtener plantas:", error);
-    res.status(500).json({ msg: "Error al obtener plantas" });
+
+    // Obtener riegos activos (pendientes o asignados, NO completados)
+    const riegosActivos = await Riego.find({
+      status: { $nin: ["completed", "cancelled", "rejected"] },
+    });
+
+    // Mezclar los datos de las plantas con el estado de riego actual
+    const plantasConEstado = plantas.map((planta) => {
+      const riegoActivo = riegosActivos.find(
+        (r) => r.treeId?.toString() === planta._id.toString()
+      );
+
+      return {
+        ...planta._doc,
+        riegoActivo: !!riegoActivo, // 🔴 true = hay riego pendiente
+      };
+    });
+
+    res.json(plantasConEstado);
+  } catch (err) {
+    console.error("❌ Error al obtener plantas:", err);
+    res.status(500).json({ msg: "Error al obtener plantas desde el servidor" });
   }
 });
+
+
 
 /* ======================================================
    🌱 2️⃣ Crear nueva planta (solo admin)

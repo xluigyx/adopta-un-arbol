@@ -165,7 +165,7 @@ interface AdminDashboardProps {
         const dataPayments = await resPayments.json();
         setPaymentRequests(dataPayments);
 
-        const resWatering = await fetch("http://localhost:4000/api/admin/watering-requests");
+        const resWatering = await fetch("http://localhost:4000/api/tecnico/todos");
         const dataWatering = await resWatering.json();
         setWateringRequests(dataWatering);
       } catch (err) {
@@ -416,48 +416,154 @@ function RequestTable({ requests, getStatusColor, getStatusText }: any) {
 }
 
 function WateringTable({ wateringRequests, getStatusColor, getStatusText }: any) {
+  const [selectedReport, setSelectedReport] = useState<any | null>(null);
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return "—";
+    return new Date(dateStr).toLocaleString();
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Droplets className="h-5 w-5 text-blue-600" /> Solicitudes de Riego
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Usuario</TableHead>
-              <TableHead>Árbol</TableHead>
-              <TableHead>Urgencia</TableHead>
-              <TableHead>Estado</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {wateringRequests.map((req: any) => (
-              <TableRow key={req._id}>
-                <TableCell>
-                  {req.userName}
-                  <br />
-                  <span className="text-sm text-gray-500">{req.userEmail}</span>
-                </TableCell>
-                <TableCell>{req.treeName}</TableCell>
-                <TableCell>
-                  <Badge>{req.urgency}</Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge className={getStatusColor(req.status)}>
-                    {getStatusText(req.status)}
-                  </Badge>
-                </TableCell>
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-green-900">
+            <Droplets className="h-5 w-5 text-blue-600" /> Solicitudes y Reportes de Riego
+          </CardTitle>
+        </CardHeader>
+
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Árbol</TableHead>
+                <TableHead>Usuario</TableHead>
+                <TableHead>Técnico</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Fecha Solicitud</TableHead>
+                <TableHead>Acción</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+            </TableHeader>
+            <TableBody>
+              {wateringRequests.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-6 text-gray-500">
+                    No hay solicitudes de riego registradas
+                  </TableCell>
+                </TableRow>
+              ) : (
+                wateringRequests.map((req: any) => (
+                  <TableRow key={req._id}>
+                    <TableCell>{req.treeName || "—"}</TableCell>
+                    <TableCell>{req.requesterName || "—"}</TableCell>
+                    <TableCell>{req.technicianName || "Sin técnico"}</TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(req.status)}>
+                        {getStatusText(req.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{formatDate(req.requestDate)}</TableCell>
+                    <TableCell>
+                      {req.status === "completed" ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedReport(req)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Ver Reporte
+                        </Button>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Modal de reporte completo */}
+      {selectedReport && (
+        <Dialog open={!!selectedReport} onOpenChange={() => setSelectedReport(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-green-900 text-lg">
+                Reporte de Riego — {selectedReport.treeName}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {selectedReport.photoEvidence && (
+                <img
+                  src={`http://localhost:4000/uploads/riegos/${selectedReport.photoEvidence}`}
+                  alt="Evidencia de riego"
+                  className="w-full rounded-lg shadow-md"
+                />
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-600">💧 Cantidad de agua:</p>
+                  <p className="font-medium text-green-800">
+                    {selectedReport.waterAmount || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">⏱ Duración:</p>
+                  <p className="font-medium text-green-800">
+                    {selectedReport.duration || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">🌿 Condición del árbol:</p>
+                  <p className="font-medium text-green-800">
+                    {selectedReport.treeCondition || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">👷 Técnico:</p>
+                  <p className="font-medium text-green-800">
+                    {selectedReport.technicianName || "—"}
+                  </p>
+                </div>
+              </div>
+
+              {selectedReport.notes && (
+                <div>
+                  <p className="text-sm text-gray-600">📝 Observaciones:</p>
+                  <p className="text-gray-700">{selectedReport.notes}</p>
+                </div>
+              )}
+
+              {selectedReport.issues && (
+                <div>
+                  <p className="text-sm text-gray-600">⚠ Problemas:</p>
+                  <p className="text-gray-700">{selectedReport.issues}</p>
+                </div>
+              )}
+
+              {selectedReport.recommendations && (
+                <div>
+                  <p className="text-sm text-gray-600">💡 Recomendaciones:</p>
+                  <p className="text-gray-700">{selectedReport.recommendations}</p>
+                </div>
+              )}
+
+              <p className="text-xs text-gray-500 text-right">
+                Completado el: {formatDate(selectedReport.completedAt)}
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }
+
+
 
 function PaymentsTable({
   paymentRequests,

@@ -167,6 +167,110 @@ router.post("/:id/reportar", upload.single("photoEvidence"), async (req, res) =>
 });
 
 /* ============================================================
+   🔔 GET - Notificaciones de riegos completados (para usuario)
+============================================================ */
+router.get("/notificaciones/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Buscar riegos completados que aún no se notificaron al usuario
+    const nuevos = await Riego.find({
+      requesterId: userId,
+      status: "completed",
+      notificado: false,
+    });
+
+    if (nuevos.length === 0) {
+      return res.json({ success: true, nuevas: [] });
+    }
+
+    // Marcar como notificados
+    await Riego.updateMany(
+      { _id: { $in: nuevos.map((r) => r._id) } },
+      { $set: { notificado: true } }
+    );
+
+    res.json({ success: true, nuevas: nuevos });
+  } catch (error) {
+    console.error("❌ Error al obtener notificaciones:", error);
+    res.status(500).json({ msg: "Error al obtener notificaciones" });
+  }
+});
+
+/* ============================================================
+   🕒 GET - Historial de riegos completados del usuario (UserProfile)
+============================================================ */
+router.get("/historial/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Buscar todos los árboles adoptados por el usuario
+    const Planta = (await import("../models/Planta.js")).default;
+    const plantas = await Planta.find({ adoptante: userId });
+    const ids = plantas.map((p) => p._id.toString());
+
+    // Buscar riegos completados de esos árboles
+    const Riego = (await import("../models/Riego.js")).default;
+    const riegos = await Riego.find({
+      treeId: { $in: ids },
+      status: "completed",
+    })
+      .sort({ completedAt: -1 })
+      .lean();
+
+    res.json(riegos);
+  } catch (error) {
+    console.error("❌ Error al obtener historial:", error);
+    res.status(500).json({ msg: "Error al obtener historial de riegos" });
+  }
+});
+
+/* ============================================================
+   🔔 GET - Notificaciones nuevas de riegos completados (UserProfile)
+============================================================ */
+router.get("/notificaciones/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Buscar árboles adoptados por este usuario
+    const Planta = (await import("../models/Planta.js")).default;
+    const plantas = await Planta.find({ adoptante: userId });
+    const ids = plantas.map((p) => p._id.toString());
+
+    // Buscar riegos completados no notificados
+    const Riego = (await import("../models/Riego.js")).default;
+    const nuevos = await Riego.find({
+      treeId: { $in: ids },
+      status: "completed",
+      notificado: false,
+    });
+
+    // Si hay nuevos, marcarlos como notificados
+    if (nuevos.length > 0) {
+      await Riego.updateMany(
+        { _id: { $in: nuevos.map((r) => r._id) } },
+        { $set: { notificado: true } }
+      );
+    }
+
+    res.json({ success: true, nuevas: nuevos });
+  } catch (error) {
+    console.error("❌ Error al obtener notificaciones:", error);
+    res.status(500).json({ msg: "Error al obtener notificaciones de riegos" });
+  }
+});
+// 🔍 Obtener todos los riegos (pendientes + completados)
+router.get("/todos", async (req, res) => {
+  try {
+    const riegos = await Riego.find().sort({ createdAt: -1 });
+    res.json(riegos);
+  } catch (error) {
+    console.error("❌ Error al obtener todos los riegos:", error);
+    res.status(500).json({ msg: "Error al obtener los riegos" });
+  }
+});
+
+/* ============================================================
    🔍 GET - Obtener todos los riegos completados (historial)
 ============================================================ */
 router.get("/completados", async (req, res) => {
