@@ -21,11 +21,9 @@ import {
   Heart,
   Droplets,
   Plus,
-  Coins,
   Edit,
   Trash2,
 } from "lucide-react";
-
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -35,9 +33,7 @@ import { ImageWithFallback } from "../figma/ImageWithFallback";
 import { AddTreeForm } from "./AddTreeForm";
 import { Planta } from "../types/Planta";
 
-// 🌳 Interfaz de planta
-
-
+// 🌳 Props del componente
 interface MapViewProps {
   onNavigate: (view: string) => void;
   user?: {
@@ -50,7 +46,7 @@ interface MapViewProps {
   };
 }
 
-// 🔹 Manejador de clicks en el mapa (solo admin)
+// 📍 Manejador de clicks para admin
 function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number) => void }) {
   useMapEvents({
     click(e) {
@@ -69,13 +65,23 @@ export function MapView({ onNavigate, user }: MapViewProps) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [treeToDelete, setTreeToDelete] = useState<Planta | null>(null);
 
-  // 🔹 Cargar plantas
+  // 💰 Créditos del usuario (local y sincronizados)
+  const [userCredits, setUserCredits] = useState<number>(user?.credits ?? 0);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      const parsedUser = JSON.parse(storedUser);
+      setUserCredits(parsedUser.credits ?? user?.credits ?? 0);
+    }
+  }, [user]);
+
+  // 🔹 Cargar árboles
   const fetchTrees = async () => {
     try {
       const res = await fetch("http://localhost:4000/api/planta");
       const data = await res.json();
 
-      // Verificar si alguna planta tiene solicitud de riego activa
       const riegoRes = await fetch("http://localhost:4000/api/tecnico/pendientes");
       const riegos = await riegoRes.json();
 
@@ -86,8 +92,8 @@ export function MapView({ onNavigate, user }: MapViewProps) {
 
       setTrees(updated);
     } catch (err) {
-      console.error("❌ Error al obtener plantas:", err);
-      toast.error("Error al cargar árboles desde el servidor.");
+      console.error("❌ Error al cargar árboles:", err);
+      toast.error("Error al obtener árboles del servidor.");
     }
   };
 
@@ -95,7 +101,7 @@ export function MapView({ onNavigate, user }: MapViewProps) {
     fetchTrees();
   }, []);
 
-  // 🔹 Iconos personalizados
+  // 🌈 Iconos personalizados
   const icons = {
     available: (L as any).ExtraMarkers.icon({
       icon: "fa-tree",
@@ -109,12 +115,6 @@ export function MapView({ onNavigate, user }: MapViewProps) {
       shape: "circle",
       prefix: "fa",
     }),
-    maintenance: (L as any).ExtraMarkers.icon({
-      icon: "fa-tree",
-      markerColor: "orange",
-      shape: "circle",
-      prefix: "fa",
-    }),
     watering: (L as any).ExtraMarkers.icon({
       icon: "fa-tint",
       markerColor: "red",
@@ -123,10 +123,16 @@ export function MapView({ onNavigate, user }: MapViewProps) {
     }),
   };
 
-  // 💚 Adoptar árbol
+  // 💚 Adoptar árbol (35 créditos)
   const handleAdoptTree = async (treeId: string) => {
     if (!user?._id) {
       toast.error("Debes iniciar sesión para adoptar.");
+      return;
+    }
+
+    if (userCredits < 35) {
+      toast.warning("💰 No tienes suficientes créditos (35 requeridos). Redirigiendo...");
+      setTimeout(() => onNavigate("credits"), 1500);
       return;
     }
 
@@ -140,7 +146,11 @@ export function MapView({ onNavigate, user }: MapViewProps) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.msg || "Error al adoptar");
 
-      toast.success(data.msg || "🌳 Árbol adoptado con éxito");
+      toast.success("🌳 Árbol adoptado con éxito");
+      const nuevosCreditos = userCredits - 35;
+      setUserCredits(nuevosCreditos);
+      localStorage.setItem("user", JSON.stringify({ ...user, credits: nuevosCreditos }));
+
       fetchTrees();
       setSelectedTree(null);
     } catch (error) {
@@ -149,14 +159,23 @@ export function MapView({ onNavigate, user }: MapViewProps) {
     }
   };
 
-  // 💧 Solicitar riego
+  // 💧 Solicitar riego (10 créditos)
   const handleWaterRequest = async (tree: Planta) => {
-    try {
-      if (!user?._id) {
-        toast.warning("⚠️ Debes iniciar sesión para solicitar un riego.");
-        return;
-      }
+    if (!user?._id) {
+      toast.warning("⚠️ Debes iniciar sesión para solicitar un riego.");
+      return;
+    }
 
+    const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+    const currentCredits = storedUser.credits ?? userCredits ?? 0;
+
+    if (currentCredits < 10) {
+      toast.warning("💧 No tienes suficientes créditos (10 requeridos). Redirigiendo...");
+      setTimeout(() => onNavigate("credits"), 1500);
+      return;
+    }
+
+    try {
       const res = await fetch("http://localhost:4000/api/tecnico/solicitar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -173,15 +192,17 @@ export function MapView({ onNavigate, user }: MapViewProps) {
       if (!res.ok) throw new Error(data.msg || "Error al solicitar riego");
 
       toast.success("💧 Solicitud de riego enviada al técnico");
+
+      const nuevosCreditos = currentCredits - 10;
+      setUserCredits(nuevosCreditos);
+      const updatedUser = { ...user, credits: nuevosCreditos };
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+
       fetchTrees();
     } catch (err: any) {
+      console.error("❌ Error al solicitar riego:", err);
       toast.error("❌ " + err.message);
     }
-  };
-
-  // 🌱 Agregar nuevo árbol
-  const handleAddTree = () => {
-    fetchTrees();
   };
 
   // ✏️ Editar árbol
@@ -193,9 +214,7 @@ export function MapView({ onNavigate, user }: MapViewProps) {
   // 🗑️ Eliminar árbol
   const handleDeleteTree = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:4000/api/planta/${id}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(`http://localhost:4000/api/planta/${id}`, { method: "DELETE" });
       const data = await res.json();
       if (res.ok) {
         toast.success("🗑️ Árbol eliminado correctamente");
@@ -211,6 +230,7 @@ export function MapView({ onNavigate, user }: MapViewProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
         <div className="mb-8 flex justify-between items-start">
           <div>
             <h1 className="text-3xl font-bold text-green-900 mb-2">Mapa de Árboles</h1>
@@ -234,6 +254,7 @@ export function MapView({ onNavigate, user }: MapViewProps) {
           )}
         </div>
 
+        {/* Mapa */}
         <div className="h-[600px] w-full mb-8 rounded-lg overflow-hidden shadow-md border">
           <MapContainer center={[-17.39, -66.15]} zoom={13} style={{ height: "100%", width: "100%" }}>
             <TileLayer
@@ -257,11 +278,9 @@ export function MapView({ onNavigate, user }: MapViewProps) {
                 icon={
                   tree.riegoActivo
                     ? icons.watering
-                    : icons[tree.estadoactual as keyof typeof icons]
+                    : icons[tree.estadoactual === "adopted" ? "adopted" : "available"]
                 }
-                eventHandlers={{
-                  click: () => setSelectedTree(tree),
-                }}
+                eventHandlers={{ click: () => setSelectedTree(tree) }}
               >
                 <Popup>
                   <strong>{tree.nombre}</strong>
@@ -273,7 +292,7 @@ export function MapView({ onNavigate, user }: MapViewProps) {
           </MapContainer>
         </div>
 
-        {/* 🌳 Modal Detalle Árbol */}
+        {/* Modal de detalle */}
         {selectedTree && (
           <Dialog open={!!selectedTree} onOpenChange={() => setSelectedTree(null)}>
             <DialogContent className="max-w-2xl">
@@ -300,7 +319,7 @@ export function MapView({ onNavigate, user }: MapViewProps) {
                       className="w-full bg-green-600 hover:bg-green-700"
                       onClick={() => handleAdoptTree(selectedTree._id)}
                     >
-                      <Heart className="mr-2 h-4 w-4" /> Adoptar este árbol (35 créditos)
+                      <Heart className="mr-2 h-4 w-4" /> Adoptar (35 créditos)
                     </Button>
                   )}
 
@@ -309,7 +328,7 @@ export function MapView({ onNavigate, user }: MapViewProps) {
                       className="w-full bg-blue-600 hover:bg-blue-700"
                       onClick={() => handleWaterRequest(selectedTree)}
                     >
-                      <Droplets className="mr-2 h-4 w-4" /> Solicitar riego (10 créditos)
+                      <Droplets className="mr-2 h-4 w-4" /> Regar (10 créditos)
                     </Button>
                   )}
 
@@ -318,7 +337,6 @@ export function MapView({ onNavigate, user }: MapViewProps) {
                       <Button variant="outline" onClick={() => handleEditTree(selectedTree)}>
                         <Edit className="mr-2 h-4 w-4" /> Editar
                       </Button>
-
                       <Button
                         variant="destructive"
                         onClick={() => {
@@ -332,52 +350,43 @@ export function MapView({ onNavigate, user }: MapViewProps) {
                   )}
                 </div>
 
-                {/* Info */}
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-semibold text-green-900 mb-2">Información Básica</h4>
-                    <p className="text-sm text-gray-700">Especie: {selectedTree.especie}</p>
-                    <p className="text-sm text-gray-700">Estado: {selectedTree.estadoactual}</p>
-                    <p className="text-sm text-gray-700">
-                      Descripción: {selectedTree.descripcion || "Sin descripción"}
-                    </p>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-green-900 mb-2">Ubicación</h4>
-                    <p className="text-sm text-gray-600">
-                      Lat: {selectedTree.latitud}, Lng: {selectedTree.longitud}
-                    </p>
-                  </div>
+                <div>
+                  <h4 className="font-semibold text-green-900 mb-2">Información</h4>
+                  <p className="text-sm text-gray-700">Especie: {selectedTree.especie}</p>
+                  <p className="text-sm text-gray-700">Estado: {selectedTree.estadoactual}</p>
+                  <p className="text-sm text-gray-700">
+                    Descripción: {selectedTree.descripcion || "Sin descripción"}
+                  </p>
+                  <p className="text-sm text-gray-600 mt-2">
+                    📍 Lat: {selectedTree.latitud}, Lng: {selectedTree.longitud}
+                  </p>
                 </div>
               </div>
             </DialogContent>
           </Dialog>
         )}
 
-        {/* 📋 Formulario agregar/editar árbol */}
+        {/* Formulario agregar/editar */}
         <AddTreeForm
           isOpen={showAddTreeForm}
           onClose={() => setShowAddTreeForm(false)}
-          onSave={handleAddTree}
+          onSave={fetchTrees}
           lat={clickedPosition?.lat}
           lng={clickedPosition?.lng}
           editingTree={editingTree}
         />
 
-        {/* 🗑️ Modal de confirmación */}
+        {/* Modal de eliminar */}
         <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
-          <DialogContent className="max-w-md overflow-y-auto max-h-[80vh]">
+          <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-red-700">
                 <Trash2 className="h-5 w-5" /> Confirmar eliminación
               </DialogTitle>
             </DialogHeader>
-
             <div className="bg-red-50 text-red-700 px-4 py-3 rounded-md text-sm mb-3">
               ⚠️ Esta acción eliminará permanentemente el árbol y sus datos asociados.
             </div>
-
             <div className="flex items-center gap-4 mb-4">
               <div className="flex-1">
                 <p className="text-gray-700 text-sm">
@@ -385,7 +394,6 @@ export function MapView({ onNavigate, user }: MapViewProps) {
                   <strong>{treeToDelete?.nombre}</strong>? Esta acción no se puede deshacer.
                 </p>
               </div>
-
               {treeToDelete?.imagen && (
                 <img
                   src={`http://localhost:4000/uploads/${treeToDelete.imagen}`}
@@ -394,16 +402,10 @@ export function MapView({ onNavigate, user }: MapViewProps) {
                 />
               )}
             </div>
-
-            <div className="flex justify-end gap-3 mt-6">
-              <Button
-                variant="outline"
-                onClick={() => setShowDeleteModal(false)}
-                className="border-gray-300 text-gray-700 hover:bg-gray-100"
-              >
+            <div className="flex justify-end gap-3 mt-4">
+              <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
                 Cancelar
               </Button>
-
               <Button
                 className="bg-red-600 hover:bg-red-700 text-white"
                 onClick={async () => {
