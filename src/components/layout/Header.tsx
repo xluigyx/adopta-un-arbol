@@ -22,7 +22,7 @@ export function Header({ currentView, onNavigate, user }: HeaderProps) {
       return [
         { id: 'home', label: 'Inicio', icon: null },
         { id: 'map', label: 'Mapa', icon: null },
-        { id: 'species', label: 'Especies', icon: null },
+       
       ];
     }
 
@@ -39,9 +39,8 @@ export function Header({ currentView, onNavigate, user }: HeaderProps) {
         ];
       case 'user':
         return [
-          { id: 'map', label: 'Mapa', icon: null },
-          { id: 'species', label: 'Especies', icon: null },
-          { id: 'history', label: 'Historial', icon: null },
+          { id: 'map', label: 'Mapa', icon: null }
+          
         ];
       default:
         return [];

@@ -24,12 +24,8 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       icon: <Leaf className="h-12 w-12 text-green-600" />,
       title: "Haz un Impacto Real",
       description: "Recibe actualizaciones sobre el crecimiento y salud de tu árbol adoptado con reportes detallados."
-    },
-    {
-      icon: <Award className="h-12 w-12 text-green-600" />,
-      title: "Reconocimiento por tu Aporte",
-      description: "Obtén certificados digitales y reconocimientos por tu contribución al cuidado urbano."
     }
+    
   ];
 
   return (
@@ -70,18 +66,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
               </div>
 
               <div className="flex items-center space-x-8 text-green-700">
-                <div className="text-center">
-                  <div className="text-2xl font-bold">2,450</div>
-                  <div className="text-sm">Árboles Adoptados</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold">1,200</div>
-                  <div className="text-sm">Usuarios Activos</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold">15</div>
-                  <div className="text-sm">Especies Disponibles</div>
-                </div>
+                
               </div>
             </div>
 
@@ -170,26 +155,8 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
 
       {/* Stats Section */}
       <section className="py-16 bg-green-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            <div className="space-y-2">
-              <div className="text-3xl font-bold text-green-700">2,450</div>
-              <div className="text-green-600">Árboles Plantados</div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-3xl font-bold text-green-700">1,200</div>
-              <div className="text-green-600">Familias Adoptantes</div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-3xl font-bold text-green-700">15</div>
-              <div className="text-green-600">Especies Nativas</div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-3xl font-bold text-green-700">95%</div>
-              <div className="text-green-600">Tasa de Supervivencia</div>
-            </div>
-          </div>
-        </div>
+        
+        
       </section>
     </div>
   );
