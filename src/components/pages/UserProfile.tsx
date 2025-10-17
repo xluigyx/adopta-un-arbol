@@ -65,35 +65,43 @@ export function UserProfile({ onNavigate, user }: UserProfileProps) {
   const [historialRiegos, setHistorialRiegos] = useState<Riego[]>([]);
 
   // ✅ Cargar datos desde backend
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Créditos actualizados
-        const userRes = await fetch(`http://localhost:4000/api/usuarios/${user._id}`);
-        const userData = await userRes.json();
-        if (userRes.ok && userData?.puntostotales !== undefined) {
-          setRealCredits(userData.puntostotales);
-        }
-
-        // Árboles adoptados
-        const treesRes = await fetch(`http://localhost:4000/api/planta`);
-        const allTrees = await treesRes.json();
-        const myTrees = allTrees.filter((t: any) => t.adoptante === user._id);
-        setAdoptedTrees(myTrees);
-
-        // Historial de riegos completados
-        const riegoRes = await fetch(`http://localhost:4000/api/tecnico/historial/${user._id}`);
-        if (riegoRes.ok) {
-          const riegoData = await riegoRes.json();
-          setHistorialRiegos(riegoData);
-        }
-      } catch (error) {
-        console.error("❌ Error al cargar datos:", error);
+ useEffect(() => {
+  const fetchData = async () => {
+    try {
+      // 1) Créditos reales
+      const userRes = await fetch(`http://localhost:4000/api/usuarios/${user._id}`);
+      const userData = await userRes.json();
+      if (userRes.ok) {
+        const credits = userData.credits ?? userData.puntostotales ?? 0;
+        setRealCredits(credits);
+        localStorage.setItem("usuario", JSON.stringify({ ...userData, credits }));
       }
-    };
 
-    fetchData();
-  }, [user._id]);
+      // 2) Árboles adoptados (comparando como string)
+      const treesRes = await fetch(`http://localhost:4000/api/planta`);
+      const allTrees = await treesRes.json();
+      const myTrees = allTrees.filter(
+        (t: any) => String(t.adoptante) === String(user._id)
+      );
+      setAdoptedTrees(myTrees);
+
+      // 3) Historial de riegos del usuario (nuevo endpoint, fallback al anterior)
+      let riegoData: any[] = [];
+      let r1 = await fetch(`http://localhost:4000/api/tecnico/historial-usuario/${user._id}`);
+      if (r1.ok) {
+        riegoData = await r1.json();
+      } else {
+        const r2 = await fetch(`http://localhost:4000/api/tecnico/historial/${user._id}`);
+        if (r2.ok) riegoData = await r2.json();
+      }
+      setHistorialRiegos(riegoData);
+    } catch (error) {
+      console.error("❌ Error al cargar datos:", error);
+    }
+  };
+
+  fetchData();
+}, [user._id]);
 
   // 🔔 Notificaciones automáticas cada 30s
   useEffect(() => {

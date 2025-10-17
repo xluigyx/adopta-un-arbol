@@ -284,5 +284,40 @@ router.get("/completados", async (req, res) => {
     res.status(500).json({ msg: "Error al obtener historial de riegos" });
   }
 });
+// GET /api/tecnico/historial-usuario/:userId
+router.get("/historial-usuario/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // 1) Por requesterId (quien pidió el riego)
+    const porRequester = await Riego.find({
+      requesterId: userId,
+      status: "completed",
+    }).lean();
+
+    // 2) Por árboles adoptados (fallback/extra)
+    const Planta = (await import("../models/Planta.js")).default;
+    const plantas = await Planta.find({ adoptante: userId }).select("_id").lean();
+    const ids = plantas.map((p) => p._id);
+
+    const porArbol = await Riego.find({
+      treeId: { $in: ids },   // si treeId es ObjectId, Mongoose castea
+      status: "completed",
+    }).lean();
+
+    // Unión simple por _id
+    const mapa = new Map();
+    [...porRequester, ...porArbol].forEach((r) => mapa.set(String(r._id), r));
+    const riegos = Array.from(mapa.values()).sort(
+      (a, b) => new Date(b.completedAt) - new Date(a.completedAt)
+    );
+
+    res.json(riegos);
+  } catch (error) {
+    console.error("❌ Error en historial-usuario:", error);
+    res.status(500).json({ msg: "Error al obtener historial de riegos" });
+  }
+});
+
 
 export default router;

@@ -65,15 +65,29 @@ export function MapView({ onNavigate, user }: MapViewProps) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [treeToDelete, setTreeToDelete] = useState<Planta | null>(null);
 
-  // 💰 Créditos del usuario (local y sincronizados)
-  const [userCredits, setUserCredits] = useState<number>(user?.credits ?? 0);
+  // 💰 Créditos sincronizados desde backend
+  const [userCredits, setUserCredits] = useState<number>(0);
 
+  // 🔹 Función para obtener créditos actualizados desde el backend
+const refreshBalance = async () => {
+  if (!user?._id) return;
+  try {
+    const res = await fetch(`http://localhost:4000/api/usuarios/${user._id}`);
+    const data = await res.json();
+
+    const credits = data.credits ?? data.puntostotales ?? 0;
+    setUserCredits(credits);
+    localStorage.setItem("usuario", JSON.stringify({ ...data, credits }));
+  } catch (err) {
+    console.error("❌ Error al cargar balance:", err);
+    toast.error("Error al obtener créditos del servidor.");
+  }
+};
+
+
+  // Cargar créditos al montar
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      setUserCredits(parsedUser.credits ?? user?.credits ?? 0);
-    }
+    refreshBalance();
   }, [user]);
 
   // 🔹 Cargar árboles
@@ -130,6 +144,8 @@ export function MapView({ onNavigate, user }: MapViewProps) {
       return;
     }
 
+    await refreshBalance();
+
     if (userCredits < 35) {
       toast.warning("💰 No tienes suficientes créditos (35 requeridos). Redirigiendo...");
       setTimeout(() => onNavigate("credits"), 1500);
@@ -147,10 +163,7 @@ export function MapView({ onNavigate, user }: MapViewProps) {
       if (!res.ok) throw new Error(data.msg || "Error al adoptar");
 
       toast.success("🌳 Árbol adoptado con éxito");
-      const nuevosCreditos = userCredits - 35;
-      setUserCredits(nuevosCreditos);
-      localStorage.setItem("user", JSON.stringify({ ...user, credits: nuevosCreditos }));
-
+      await refreshBalance();
       fetchTrees();
       setSelectedTree(null);
     } catch (error) {
@@ -166,10 +179,9 @@ export function MapView({ onNavigate, user }: MapViewProps) {
       return;
     }
 
-    const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-    const currentCredits = storedUser.credits ?? userCredits ?? 0;
+    await refreshBalance();
 
-    if (currentCredits < 10) {
+    if (userCredits < 10) {
       toast.warning("💧 No tienes suficientes créditos (10 requeridos). Redirigiendo...");
       setTimeout(() => onNavigate("credits"), 1500);
       return;
@@ -192,12 +204,7 @@ export function MapView({ onNavigate, user }: MapViewProps) {
       if (!res.ok) throw new Error(data.msg || "Error al solicitar riego");
 
       toast.success("💧 Solicitud de riego enviada al técnico");
-
-      const nuevosCreditos = currentCredits - 10;
-      setUserCredits(nuevosCreditos);
-      const updatedUser = { ...user, credits: nuevosCreditos };
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-
+      await refreshBalance();
       fetchTrees();
     } catch (err: any) {
       console.error("❌ Error al solicitar riego:", err);
@@ -238,6 +245,9 @@ export function MapView({ onNavigate, user }: MapViewProps) {
               {user?.role === "admin"
                 ? "Gestiona, edita y elimina árboles del sistema"
                 : "Explora, adopta o solicita riego 🌱"}
+            </p>
+            <p className="text-sm text-green-700 font-medium mt-1">
+              Créditos disponibles: {userCredits}
             </p>
           </div>
 

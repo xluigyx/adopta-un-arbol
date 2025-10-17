@@ -33,7 +33,6 @@ export function LoginPage({ onNavigate, onLogin }: LoginPageProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [credentials, setCredentials] = useState({ email: "", password: "" });
 
-  // Popup states
   const [popupMessage, setPopupMessage] = useState("");
   const [showPopup, setShowPopup] = useState(false);
 
@@ -57,13 +56,12 @@ export function LoginPage({ onNavigate, onLogin }: LoginPageProps) {
         return;
       }
 
-      // 🔹 Validar rol según pestaña con mapa
+      // 🔹 Validar rol según pestaña seleccionada
       const rolBackend = data.usuario.rol?.toLowerCase();
-
       const roleMap: Record<string, string[]> = {
-        user: ["cliente"],
+        user: ["cliente", "user", "usuario"],
         admin: ["admin", "administrador"],
-        technician: ["técnico"],
+        technician: ["técnico", "tecnico"],
       };
 
       if (!roleMap[selectedTab].includes(rolBackend)) {
@@ -73,15 +71,23 @@ export function LoginPage({ onNavigate, onLogin }: LoginPageProps) {
         setShowPopup(true);
         return;
       }
-      // ✅ Guarda el usuario con todos sus datos reales y lo imprime para depurar
+
+      // ✅ Normalizar los créditos antes de guardar
       if (data.usuario && data.usuario._id) {
-        localStorage.setItem("usuario", JSON.stringify(data.usuario));
+        const usuario = data.usuario || {};
+        const credits =
+          typeof usuario.credits === "number"
+            ? usuario.credits
+            : (usuario.puntostotales ?? 0);
+
+        const normalizedUser = { ...usuario, credits };
+
+        localStorage.setItem("usuario", JSON.stringify(normalizedUser));
         localStorage.setItem("token", data.token);
-        console.log("✅ Usuario guardado en localStorage:", data.usuario);
+        console.log("✅ Usuario guardado en localStorage:", normalizedUser);
       } else {
         console.error("❌ El backend no devolvió un usuario válido:", data);
-}
-
+      }
 
       // ✅ Login exitoso
       onLogin(selectedTab as "user" | "admin" | "technician", credentials);
@@ -165,7 +171,6 @@ export function LoginPage({ onNavigate, onLogin }: LoginPageProps) {
               </TabsList>
 
               <TabsContent value={selectedTab} className="space-y-4">
-                {/* User Type Info */}
                 <div
                   className={`${currentUserType.bgColor} p-4 rounded-lg border`}
                 >
@@ -219,7 +224,11 @@ export function LoginPage({ onNavigate, onLogin }: LoginPageProps) {
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
                       >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -237,7 +246,6 @@ export function LoginPage({ onNavigate, onLogin }: LoginPageProps) {
 
             <Separator className="my-6" />
 
-            {/* Additional Options */}
             <div className="space-y-3 text-center">
               <Button
                 variant="link"
@@ -246,16 +254,8 @@ export function LoginPage({ onNavigate, onLogin }: LoginPageProps) {
               >
                 ¿No tienes cuenta? Regístrate aquí
               </Button>
-
-              {/* <div className="text-xs text-gray-500">
-                <p>¿Olvidaste tu contraseña?</p>
-                <Button variant="link" className="text-xs p-0 h-auto text-green-600">
-                  Recuperar contraseña
-                </Button>
-              </div> */}
             </div>
 
-            {/* Back to Home */}
             <div className="mt-6 pt-4 border-t">
               <Button
                 variant="ghost"

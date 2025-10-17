@@ -6,20 +6,11 @@ import {
   CardTitle,
 } from "../ui/card";
 import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
-import { Label } from "../ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "../ui/dialog";
-import { Textarea } from "../ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import {
   Coins,
   QrCode,
   Check,
-  Gift,
   Star,
   Upload,
   Camera,
@@ -50,22 +41,37 @@ interface CreditsPageProps {
   };
 }
 
-export function CreditsPage({onNavigate, user}: CreditsPageProps) {
+export function CreditsPage({ onNavigate, user }: CreditsPageProps) {
   const [selectedPackage, setSelectedPackage] = useState<string>("");
   const [showPaymentProof, setShowPaymentProof] = useState(false);
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
-  const [paymentProofPreview, setPaymentProofPreview] = useState<string | null>(
-    null
-  );
+  const [paymentProofPreview, setPaymentProofPreview] = useState<string | null>(null);
   const [paymentNotes, setPaymentNotes] = useState("");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [adminQR, setAdminQR] = useState<string | null>(null);
   const [isLoadingQR, setIsLoadingQR] = useState(true);
 
-  // 🔹 Nuevos modales visuales
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
 
+  // Créditos actualizados desde backend
+  const [userCredits, setUserCredits] = useState<number>(0);
+
+  // -------- Helpers --------
+  const refreshCredits = async () => {
+    try {
+      const res = await fetch(`http://localhost:4000/api/usuarios/${user._id}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const credits = data.credits ?? data.puntostotales ?? 0;
+      setUserCredits(credits);
+      localStorage.setItem("usuario", JSON.stringify({ ...data, credits }));
+    } catch (error) {
+      console.error("Error al obtener créditos del usuario:", error);
+    }
+  };
+
+  // Cargar QR y créditos desde backend
   useEffect(() => {
     const fetchAdminQR = async () => {
       try {
@@ -80,9 +86,13 @@ export function CreditsPage({onNavigate, user}: CreditsPageProps) {
         setIsLoadingQR(false);
       }
     };
-    fetchAdminQR();
-  }, []);
 
+    fetchAdminQR();
+    refreshCredits();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?._id]);
+
+  // Lista de paquetes
   const creditPackages: CreditPackage[] = [
     { id: "starter", name: "Paquete Inicial", credits: 10, price: 35, description: "Perfecto para adoptar tu primer árbol" },
     { id: "family", name: "Paquete Familiar", credits: 25, price: 80, originalPrice: 100, bonus: 3, description: "Ideal para familias comprometidas con el ambiente" },
@@ -97,15 +107,12 @@ export function CreditsPage({onNavigate, user}: CreditsPageProps) {
     setShowPaymentProof(true);
   };
 
-  const handlePaymentProofUpload = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handlePaymentProofUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setPaymentProof(file);
       const reader = new FileReader();
-      reader.onload = (e) =>
-        setPaymentProofPreview(e.target?.result as string);
+      reader.onload = (e) => setPaymentProofPreview(e.target?.result as string);
       reader.readAsDataURL(file);
     }
   };
@@ -115,37 +122,71 @@ export function CreditsPage({onNavigate, user}: CreditsPageProps) {
     setPaymentProofPreview(null);
   };
 
+  // Enviar comprobante de pago
   const submitPaymentProof = async () => {
     if (!paymentProof || !selectedPkg) return;
-
     setIsProcessingPayment(true);
 
     try {
+      const token = localStorage.getItem("token") || "";
+
       const formData = new FormData();
       formData.append("userId", user._id);
       formData.append("nombreUsuario", user.name);
       formData.append("paqueteId", selectedPkg.id);
       formData.append("paqueteNombre", selectedPkg.name);
-      formData.append("creditos", selectedPkg.credits.toString());
-      formData.append("bonus", (selectedPkg.bonus || 0).toString());
-      formData.append("precio", selectedPkg.price.toString());
+      formData.append("creditos", String(selectedPkg.credits));
+      formData.append("bonus", String(selectedPkg.bonus || 0));
+      formData.append("precio", String(selectedPkg.price));
       formData.append("notas", paymentNotes);
-      formData.append("comprobante", paymentProof);
+      formData.append("comprobante", paymentProof); // nombre esperado más común
 
-      const res = await fetch("http://localhost:4000/api/pago", {
-        method: "POST",
-        body: formData,
-      });
+      // helper de post (maneja errores y JSON no válidos)
+      const postTo = async (url: string) => {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "x-token": token, // si tu backend valida JWT por header
+          },
+          body: formData,
+        });
 
-      const data = await res.json();
+        let data: any = null;
+        try {
+          data = await res.json();
+        } catch {
+          const text = await res.text();
+          throw new Error(`Respuesta no JSON (${res.status}): ${text?.slice(0, 180)}`);
+        }
 
-      if (!data.success) throw new Error(data.message);
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || data?.msg || `HTTP ${res.status}`);
+        }
+        return data;
+      };
 
-      // ✅ Modal visual de éxito
+      // intenta /api/pago y fallback /api/pagos si 404
+      let data = null;
+      try {
+        data = await postTo("http://localhost:4000/api/pago");
+      } catch (err: any) {
+        if ((err?.message || "").includes("404")) {
+          data = await postTo("http://localhost:4000/api/pagos");
+        } else {
+          throw err;
+        }
+      }
+
+      // Éxito visual
       setShowSuccessModal(true);
       setShowPaymentProof(false);
-    } catch (error) {
+
+      // Refrescar créditos desde backend
+      await refreshCredits();
+    } catch (error: any) {
       console.error("Error al subir comprobante:", error);
+      // Además del modal genérico, mostramos causa real (opcional)
+      alert(`Error al enviar comprobante: ${error?.message || error}`);
       setShowErrorModal(true);
     } finally {
       setIsProcessingPayment(false);
@@ -159,16 +200,14 @@ export function CreditsPage({onNavigate, user}: CreditsPageProps) {
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-green-900">
-            Comprar Créditos
-          </h1>
+          <h1 className="text-3xl font-bold text-green-900">Comprar Créditos</h1>
           <p className="text-gray-600 mt-2 mb-4">
             Usa tus créditos para adoptar y cuidar árboles 🌱
           </p>
           <div className="inline-flex items-center gap-2 bg-green-100 px-4 py-2 rounded-full">
             <Coins className="h-5 w-5 text-green-600" />
             <span className="text-green-800 font-medium">
-              {user.credits} créditos disponibles
+              {userCredits} créditos disponibles
             </span>
           </div>
         </div>
@@ -192,9 +231,7 @@ export function CreditsPage({onNavigate, user}: CreditsPageProps) {
                 </div>
               )}
               <CardHeader className="text-center">
-                <CardTitle className="text-lg text-green-900">
-                  {pkg.name}
-                </CardTitle>
+                <CardTitle className="text-lg text-green-900">{pkg.name}</CardTitle>
               </CardHeader>
               <CardContent className="text-center space-y-3">
                 <p className="text-gray-600 text-sm">{pkg.description}</p>
@@ -259,15 +296,13 @@ export function CreditsPage({onNavigate, user}: CreditsPageProps) {
                   </DialogHeader>
 
                   <div className="space-y-6">
-                    {/* QR */}
                     <div className="text-center">
                       {isLoadingQR ? (
                         <p className="text-gray-500">Cargando código QR...</p>
                       ) : adminQR ? (
                         <>
                           <p className="text-gray-700 mb-2">
-                            Escanea este QR y paga{" "}
-                            <strong>Bs {selectedPkg.price}</strong>
+                            Escanea este QR y paga <strong>Bs {selectedPkg.price}</strong>
                           </p>
                           <img
                             src={adminQR}
@@ -282,13 +317,10 @@ export function CreditsPage({onNavigate, user}: CreditsPageProps) {
                       )}
                     </div>
 
-                    {/* Subir comprobante */}
                     {!paymentProofPreview ? (
                       <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50 transition">
                         <Camera className="h-10 w-10 text-gray-400 mx-auto mb-3" />
-                        <p className="text-gray-600">
-                          Sube tu comprobante de pago
-                        </p>
+                        <p className="text-gray-600">Sube tu comprobante de pago</p>
                         <label
                           htmlFor="proof-upload"
                           className="mt-3 inline-flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md cursor-pointer hover:bg-green-700"
@@ -341,8 +373,7 @@ export function CreditsPage({onNavigate, user}: CreditsPageProps) {
                     ¡Pago enviado con éxito!
                   </h2>
                   <p className="text-gray-600 mb-4">
-                    Tu comprobante fue recibido. El administrador revisará tu
-                    pago pronto 🌱
+                    Tu comprobante fue recibido. El administrador revisará tu pago pronto 🌱
                   </p>
                   <Button
                     className="bg-green-600 hover:bg-green-700"
@@ -361,8 +392,7 @@ export function CreditsPage({onNavigate, user}: CreditsPageProps) {
                     Error al enviar
                   </h2>
                   <p className="text-gray-600 mb-4">
-                    Hubo un problema al subir tu comprobante. Inténtalo
-                    nuevamente.
+                    Hubo un problema al subir tu comprobante. Inténtalo nuevamente.
                   </p>
                   <Button
                     variant="destructive"

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { toast } from "sonner"; // 🟢 NUEVO
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -27,18 +27,20 @@ import {
   DollarSign,
   CheckCircle,
   XCircle,
-  Clock,
   TrendingUp,
-  AlertTriangle,
-  Eye,
+  ImageIcon,
   Droplets,
   UserCheck,
   Upload,
-  ImageIcon,
   Check,
+  Eye,
+  Calendar,
+  Clock,
+  AlertTriangle,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
+/* ======================== Tipos ======================== */
 
 interface AdoptionRequest {
   _id: string;
@@ -54,27 +56,47 @@ interface AdoptionRequest {
 
 interface WateringRequest {
   _id: string;
-  userName: string;
-  userEmail: string;
-  treeName: string;
-  location: string;
-  requestDate: string;
+  userName?: string;
+  userEmail?: string;
+  requesterName?: string;
+  requesterId?: string;
+  treeName?: string;
+  treeId?: string;
+  location?: string;
+  urgency?: "low" | "medium" | "high";
+  requestDate?: string;
+  createdAt?: string;
   status: "pending" | "assigned" | "completed";
-  assignedTechnician?: string;
-  urgency: "low" | "medium" | "high";
-  notes: string;
+
+  // Campos de reporte (cuando está completado)
+  completionStatus?: string;
+  waterAmount?: string | number;
+  duration?: string | number;
+  treeCondition?: string;
+  notes?: string;
+  issues?: string;
+  recommendations?: string;
+  technicianId?: string;
+  technicianName?: string;
+  completedAt?: string;
+  photoEvidence?: string;
 }
 
 interface PaymentRequest {
   _id: string;
-  userName: string;
-  userEmail: string;
-  amount: number;
-  credits: number;
-  method: string;
-  requestDate: string;
+  userName?: string;
+  userEmail?: string;
+  amount?: number;
+  credits?: number;
+  method?: string;
+  requestDate?: string;
   status: "pending" | "approved" | "rejected";
   montoTotal?: number;
+  paquete?: { creditos?: number };
+  comprobanteUrl?: string;
+  fechaCreacion?: string;
+  estado?: string;
+  metodoPago?: string;
 }
 
 interface User {
@@ -91,9 +113,9 @@ interface AdminDashboardProps {
   onNavigate: (view: string) => void;
 }
 
+/* ======================== Principal ======================== */
 
-  // 🔹 Cargar datos desde el backend
-  export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
+export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState("overview");
 
   const [users, setUsers] = useState<User[]>([]);
@@ -101,38 +123,46 @@ interface AdminDashboardProps {
   const [wateringRequests, setWateringRequests] = useState<WateringRequest[]>([]);
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
 
-  // 🟢 NUEVO: aprobar o rechazar pago
+  // 👉 Estado para ver reporte completo
+  const [reportOpen, setReportOpen] = useState(false);
+  const [selectedRiego, setSelectedRiego] = useState<WateringRequest | null>(null);
+  const [loadingReport, setLoadingReport] = useState(false);
+
+  // Aprobación / Rechazo de pagos
   const handlePaymentAction = async (id: string, action: "approve" | "reject") => {
-  try {
-    const estado = action === "approve" ? "Aprobado" : "Rechazado";
+    try {
+      const estado = action === "approve" ? "Aprobado" : "Rechazado";
 
-    const res = await fetch(`http://localhost:4000/api/pago/${id}/estado`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ estado }),
-    });
+      const res = await fetch(`http://localhost:4000/api/pago/${id}/estado`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ estado }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (data.success) {
-      toast.success(
-        action === "approve"
-          ? "✅ Pago aprobado correctamente"
-          : "❌ Pago rechazado correctamente"
-      );
-    } else {
-      toast.error(data.message || "Error al actualizar el pago");
+      if (data.success) {
+        toast.success(
+          action === "approve"
+            ? "✅ Pago aprobado correctamente"
+            : "❌ Pago rechazado correctamente"
+        );
+        // refrescar lista
+        const resPayments = await fetch("http://localhost:4000/api/admin/payments");
+        const dataPayments = await resPayments.json();
+        setPaymentRequests(dataPayments);
+      } else {
+        toast.error(data.message || "Error al actualizar el pago");
+      }
+    } catch (err) {
+      console.error("❌ Error:", err);
+      toast.error("Error de conexión con el servidor");
     }
-  } catch (err) {
-    console.error("❌ Error:", err);
-    toast.error("Error de conexión con el servidor");
-  }
-};
+  };
 
-
-  // 🟢 NUEVO: detectar nuevos pagos y notificar
+  // Detectar nuevos pagos y notificar
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
@@ -145,12 +175,12 @@ interface AdminDashboardProps {
       } catch (e) {
         console.error("Error verificando pagos:", e);
       }
-    }, 7000); // cada 7 segundos
-
+    }, 7000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentRequests]);
 
-  // 🔹 Cargar datos desde el backend
+  // Cargar datos inciales
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -177,24 +207,26 @@ interface AdminDashboardProps {
     fetchData();
   }, []);
 
-
-  // 📊 Stats rápidos
+  // Stats rápidos
   const stats = {
-    totalUsers: users.length,
-    totalTechnicians: users.filter((u) => u.rol?.toLowerCase() === "técnico").length,
-    totalRevenue: paymentRequests.reduce(
-      (acc, p) => acc + (p.status === "approved" ? p.amount : 0),
-      0
-    ),
-    pendingRequests:
-      adoptionRequests.filter((r) => r.status === "pending").length +
-      wateringRequests.filter((r) => r.status === "pending").length +
-      paymentRequests.filter((r) => r.status === "pending").length,
-  };
+  totalUsers: users.length,
+  totalTechnicians: users.filter((u) => (u.rol || "").toLowerCase() === "técnico").length,
+  totalRevenue: paymentRequests.reduce(
+    (acc, p) => acc + ((p.status || p.estado) === "approved" ? (p.amount || 0) : 0),
+    0
+  ),
+  pendingRequests:
+    adoptionRequests.filter((r) => (r.status || "").toLowerCase() === "pending").length +
+    wateringRequests.filter((r) => (r.status || "").toLowerCase() === "pending").length +
+    paymentRequests.filter(
+      (pr) => ((pr.estado || pr.status || "") as string).toLowerCase() === "pending"
+    ).length,
+};
 
-  // 🔹 Helpers UI
+
+  // Helpers UI
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch ((status || "").toLowerCase()) {
       case "pending":
         return "bg-yellow-100 text-yellow-800";
       case "approved":
@@ -211,7 +243,7 @@ interface AdminDashboardProps {
   };
 
   const getStatusText = (status: string) => {
-    switch (status) {
+    switch ((status || "").toLowerCase()) {
       case "pending":
         return "Pendiente";
       case "approved":
@@ -223,12 +255,12 @@ interface AdminDashboardProps {
       case "completed":
         return "Completado";
       default:
-        return status;
+        return status || "—";
     }
   };
 
   const getRoleColor = (role: string) => {
-    switch (role.toLowerCase()) {
+    switch ((role || "").toLowerCase()) {
       case "administrador":
         return "bg-purple-100 text-purple-800";
       case "técnico":
@@ -241,7 +273,7 @@ interface AdminDashboardProps {
   };
 
   const getRoleText = (role: string) => {
-    switch (role.toLowerCase()) {
+    switch ((role || "").toLowerCase()) {
       case "administrador":
         return "Administrador";
       case "técnico":
@@ -249,7 +281,28 @@ interface AdminDashboardProps {
       case "cliente":
         return "Usuario";
       default:
-        return role;
+        return role || "—";
+    }
+  };
+
+  // 👁️ Abrir modal de reporte
+  const openReport = async (riego: WateringRequest) => {
+    setSelectedRiego(riego);
+    setReportOpen(true);
+
+    // Si faltan campos del reporte, intenta obtener versión completa
+    if (riego.status === "completed" && (!riego.completedAt || !riego.completionStatus)) {
+      try {
+        setLoadingReport(true);
+        const res = await fetch("http://localhost:4000/api/tecnico/todos");
+        const list = await res.json();
+        const full = (list as WateringRequest[]).find((x) => String(x._id) === String(riego._id));
+        if (full) setSelectedRiego(full);
+      } catch (e) {
+        console.error("Error cargando detalle del riego:", e);
+      } finally {
+        setLoadingReport(false);
+      }
     }
   };
 
@@ -263,9 +316,8 @@ interface AdminDashboardProps {
           </p>
         </div>
 
-        {/* 🔹 Stats Cards */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          
           <StatCard
             title="Técnicos Activos"
             value={stats.totalTechnicians}
@@ -278,36 +330,169 @@ interface AdminDashboardProps {
             subtitle="Sistema activo"
             subtitleColor="text-green-600"
           />
-          
         </div>
 
-        {/* 🔹 Tabs */}
+        {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5">
-            
-            <TabsTrigger value="watering">Riego</TabsTrigger>
-            <TabsTrigger value="payments">Pagos</TabsTrigger>
-            <TabsTrigger value="users">Usuarios</TabsTrigger>
-            <TabsTrigger value="qr">QR de Pago</TabsTrigger>
-          </TabsList>
+          <TabsList className="flex w-full justify-between bg-green-50 rounded-xl shadow-sm overflow-hidden">
+  <TabsTrigger
+    value="watering"
+    className="flex-1 text-center py-3 font-medium data-[state=active]:bg-green-600 data-[state=active]:text-white transition-all"
+  >
+    💧 Riego
+  </TabsTrigger>
+  <TabsTrigger
+    value="payments"
+    className="flex-1 text-center py-3 font-medium data-[state=active]:bg-green-600 data-[state=active]:text-white transition-all"
+  >
+    💰 Pagos
+  </TabsTrigger>
+  <TabsTrigger
+    value="users"
+    className="flex-1 text-center py-3 font-medium data-[state=active]:bg-green-600 data-[state=active]:text-white transition-all"
+  >
+    👥 Usuarios
+  </TabsTrigger>
+  <TabsTrigger
+    value="qr"
+    className="flex-1 text-center py-3 font-medium data-[state=active]:bg-green-600 data-[state=active]:text-white transition-all"
+  >
+    📷 QR de Pago
+  </TabsTrigger>
+</TabsList>
 
-          
 
           {/* 💧 Riego */}
           <TabsContent value="watering">
-            <WateringTable wateringRequests={wateringRequests} getStatusColor={getStatusColor} getStatusText={getStatusText} />
+            <WateringTable
+              wateringRequests={wateringRequests}
+              getStatusColor={getStatusColor}
+              getStatusText={getStatusText}
+              onViewReport={openReport}
+            />
+
+            {/* Modal del reporte completo */}
+            <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+              <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-green-900">
+                    <Droplets className="h-5 w-5 text-blue-600" />
+                    {selectedRiego?.treeName || "Detalle de riego"}
+                  </DialogTitle>
+                </DialogHeader>
+
+                {loadingReport ? (
+                  <p className="text-gray-500">Cargando reporte...</p>
+                ) : selectedRiego ? (
+                  <div className="grid md:grid-cols-2 gap-6">
+                    {/* Foto */}
+                    <div className="space-y-3">
+                      <div className="aspect-video rounded-lg overflow-hidden border">
+                        {selectedRiego.photoEvidence ? (
+                          <img
+                            src={`http://localhost:4000/uploads/riegos/${selectedRiego.photoEvidence}`}
+                            alt="Evidencia"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <img
+                            src="https://placehold.co/800x450?text=Sin+evidencia"
+                            alt="Sin evidencia"
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                      </div>
+
+                      <div className="text-sm text-gray-600">
+                        <p>
+                          <strong>Solicitante:</strong>{" "}
+                          {selectedRiego.requesterName || "—"}
+                        </p>
+                        <p>
+                          <strong>Técnico:</strong>{" "}
+                          {selectedRiego.technicianName || "—"}
+                        </p>
+                        <p>
+                          <strong>Estado:</strong>{" "}
+                          <Badge className={getStatusColor(selectedRiego.status)}>
+                            {getStatusText(selectedRiego.status)}
+                          </Badge>
+                        </p>
+                        <p>
+                          <strong>Creado:</strong>{" "}
+                          {selectedRiego.requestDate
+                            ? new Date(selectedRiego.requestDate).toLocaleString()
+                            : selectedRiego.createdAt
+                            ? new Date(selectedRiego.createdAt).toLocaleString()
+                            : "—"}
+                        </p>
+                        <p>
+                          <strong>Completado:</strong>{" "}
+                          {selectedRiego.completedAt
+                            ? new Date(selectedRiego.completedAt).toLocaleString()
+                            : "—"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Detalles del reporte */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-green-900">Reporte del técnico</h4>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className="bg-gray-50 p-3 rounded border">
+                          <p className="text-gray-500">Estado de finalización</p>
+                          <p className="font-medium">{selectedRiego.completionStatus || "—"}</p>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded border">
+                          <p className="text-gray-500">Agua utilizada</p>
+                          <p className="font-medium">
+                            {selectedRiego.waterAmount ? `${selectedRiego.waterAmount}` : "—"}
+                          </p>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded border">
+                          <p className="text-gray-500">Duración</p>
+                          <p className="font-medium">
+                            {selectedRiego.duration ? `${selectedRiego.duration}` : "—"}
+                          </p>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded border">
+                          <p className="text-gray-500">Condición del árbol</p>
+                          <p className="font-medium">{selectedRiego.treeCondition || "—"}</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-gray-50 p-3 rounded border text-sm">
+                        <p className="text-gray-500 mb-1">Notas</p>
+                        <p className="whitespace-pre-wrap">{selectedRiego.notes || "—"}</p>
+                      </div>
+
+                      <div className="bg-gray-50 p-3 rounded border text-sm">
+                        <p className="text-gray-500 mb-1">Problemas detectados</p>
+                        <p className="whitespace-pre-wrap">{selectedRiego.issues || "—"}</p>
+                      </div>
+
+                      <div className="bg-gray-50 p-3 rounded border text-sm">
+                        <p className="text-gray-500 mb-1">Recomendaciones</p>
+                        <p className="whitespace-pre-wrap">{selectedRiego.recommendations || "—"}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-gray-500">Selecciona un riego para ver el detalle.</p>
+                )}
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           {/* 💰 Pagos */}
-         <TabsContent value="payments">
-  <PaymentsTable
-    paymentRequests={paymentRequests}
-    getStatusColor={getStatusColor}
-    getStatusText={getStatusText}
-    handlePaymentAction={handlePaymentAction} // ✅ este nuevo
-  />
-</TabsContent>
-
+          <TabsContent value="payments">
+            <PaymentsTable
+              paymentRequests={paymentRequests}
+              getStatusColor={getStatusColor}
+              getStatusText={getStatusText}
+              handlePaymentAction={handlePaymentAction}
+            />
+          </TabsContent>
 
           {/* 👤 Usuarios */}
           <TabsContent value="users">
@@ -333,7 +518,7 @@ interface AdminDashboardProps {
   );
 }
 
-/* ---------- Subcomponentes para mantener orden ---------- */
+/* ======================== Subcomponentes ======================== */
 
 function StatCard({ title, value, icon, subtitle, subtitleColor }: any) {
   return (
@@ -357,53 +542,12 @@ function StatCard({ title, value, icon, subtitle, subtitleColor }: any) {
   );
 }
 
-function RequestTable({ requests, getStatusColor, getStatusText }: any) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Solicitudes de Adopción</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Usuario</TableHead>
-              <TableHead>Árbol</TableHead>
-              <TableHead>Ubicación</TableHead>
-              <TableHead>Fecha</TableHead>
-              <TableHead>Estado</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {requests.map((req: any) => (
-              <TableRow key={req._id}>
-                <TableCell>
-                  {req.userName}
-                  <br />
-                  <span className="text-sm text-gray-500">{req.userEmail}</span>
-                </TableCell>
-                <TableCell>
-                  {req.treeName}
-                  <br />
-                  <span className="text-sm italic">{req.treeSpecies}</span>
-                </TableCell>
-                <TableCell>{req.location}</TableCell>
-                <TableCell>{new Date(req.requestDate).toLocaleDateString()}</TableCell>
-                <TableCell>
-                  <Badge className={getStatusColor(req.status)}>
-                    {getStatusText(req.status)}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-  );
-}
-
-function WateringTable({ wateringRequests, getStatusColor, getStatusText }: any) {
+function WateringTable({
+  wateringRequests,
+  getStatusColor,
+  getStatusText,
+  onViewReport,
+}: any) {
   return (
     <Card>
       <CardHeader>
@@ -420,15 +564,16 @@ function WateringTable({ wateringRequests, getStatusColor, getStatusText }: any)
               <TableHead>Árbol</TableHead>
               <TableHead>Ubicación</TableHead>
               <TableHead>Urgencia</TableHead>
-              <TableHead>Fecha de Solicitud</TableHead> {/* ✅ NUEVA COLUMNA */}
+              <TableHead>Fecha</TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead>Reporte</TableHead>
             </TableRow>
           </TableHeader>
 
           <TableBody>
-            {wateringRequests.length === 0 ? (
+            {(!wateringRequests || wateringRequests.length === 0) ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-gray-500 py-4">
+                <TableCell colSpan={7} className="text-center text-gray-500 py-4">
                   No hay solicitudes de riego registradas.
                 </TableCell>
               </TableRow>
@@ -481,6 +626,17 @@ function WateringTable({ wateringRequests, getStatusColor, getStatusText }: any)
                       {getStatusText(req.status)}
                     </Badge>
                   </TableCell>
+
+                  <TableCell>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onViewReport(req)}
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      Ver
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -491,13 +647,11 @@ function WateringTable({ wateringRequests, getStatusColor, getStatusText }: any)
   );
 }
 
-
-
 function PaymentsTable({
   paymentRequests,
   getStatusColor,
   getStatusText,
-  handlePaymentAction, // ✅ se recibe aquí como prop
+  handlePaymentAction,
 }: any) {
   return (
     <Card>
@@ -524,86 +678,81 @@ function PaymentsTable({
           </TableHeader>
 
           <TableBody>
-            {paymentRequests.map((p: any) => (
-              <TableRow key={p._id}>
-                <TableCell>
-                  {p.nombreUsuario || p.userName || "—"}
-                  <br />
-                  <span className="text-sm text-gray-500">
-                    {p.userEmail || "—"}
-                  </span>
-                </TableCell>
+            {paymentRequests.map((p: any) => {
+              const estadoPago = (p.estado || p.status || "").toLowerCase();
+              return (
+                <TableRow key={p._id}>
+                  <TableCell>
+                    {p.nombreUsuario || p.userName || "—"}
+                    <br />
+                    <span className="text-sm text-gray-500">
+                      {p.userEmail || "—"}
+                    </span>
+                  </TableCell>
 
-                <TableCell>Bs {p.montoTotal || p.amount || 0}</TableCell>
-                <TableCell>{p.paquete?.creditos || p.credits || 0}</TableCell>
-                <TableCell>{p.metodoPago || p.method || "—"}</TableCell>
+                  <TableCell>Bs {p.montoTotal ?? p.amount ?? 0}</TableCell>
+                  <TableCell>{p.paquete?.creditos ?? p.credits ?? 0}</TableCell>
+                  <TableCell>{p.metodoPago || p.method || "—"}</TableCell>
 
-                <TableCell>
-                  {p.fechaCreacion || p.requestDate
-                    ? new Date(p.fechaCreacion || p.requestDate).toLocaleDateString()
-                    : "—"}
-                </TableCell>
+                  <TableCell>
+                    {p.fechaCreacion || p.requestDate
+                      ? new Date(p.fechaCreacion || p.requestDate).toLocaleDateString()
+                      : "—"}
+                  </TableCell>
 
-                <TableCell>
-                  {p.comprobanteUrl ? (
-                    <a
-                      href={`http://localhost:4000${p.comprobanteUrl}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 underline hover:text-blue-800"
-                    >
-                      Ver
-                    </a>
-                  ) : (
-                    "—"
-                  )}
-                </TableCell>
+                  <TableCell>
+                    {p.comprobanteUrl ? (
+                      <a
+                        href={`http://localhost:4000${p.comprobanteUrl}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 underline hover:text-blue-800"
+                      >
+                        Ver
+                      </a>
+                    ) : (
+                      "—"
+                    )}
+                  </TableCell>
 
-                <TableCell>
-                  <Badge className={getStatusColor(p.estado || p.status)}>
-                    {getStatusText(p.estado || p.status)}
-                  </Badge>
-                </TableCell>
+                  <TableCell>
+                    <Badge className={getStatusColor(estadoPago)}>
+                      {getStatusText(estadoPago)}
+                    </Badge>
+                  </TableCell>
 
-               <TableCell>
-  {(() => {
-    const estadoPago = (p.estado || p.status || "").toLowerCase();
+                  <TableCell>
+                    {estadoPago === "pendiente" || estadoPago === "pending" ? (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                          onClick={() => handlePaymentAction(p._id, "approve")}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" /> Aprobar
+                        </Button>
 
-    return estadoPago === "pendiente" || estadoPago === "pending" ? (
-      <div className="flex gap-2">
-        <Button
-          size="sm"
-          className="bg-green-600 hover:bg-green-700 text-white"
-          onClick={() => handlePaymentAction(p._id, "approve")}
-        >
-          <CheckCircle className="h-4 w-4 mr-1" /> Aprobar
-        </Button>
-
-        <Button
-          size="sm"
-          variant="destructive"
-          onClick={() => handlePaymentAction(p._id, "reject")}
-        >
-          <XCircle className="h-4 w-4 mr-1" /> Rechazar
-        </Button>
-      </div>
-    ) : (
-      <span className="text-gray-400">—</span>
-    );
-  })()}
-</TableCell>
-
-              </TableRow>
-            ))}
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handlePaymentAction(p._id, "reject")}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" /> Rechazar
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </CardContent>
     </Card>
   );
 }
-
-
-
 
 function UsersTable({ users, getRoleColor, getRoleText }: any) {
   return (
@@ -679,7 +828,7 @@ function QRUploadSection() {
 
     const data = await res.json();
     if (data.success) {
-      setShowSuccess(true); // 🟩 abrir modal
+      setShowSuccess(true);
       setCurrentQR(`http://localhost:4000${data.imageUrl}`);
       setSelectedFile(null);
       setPreview(null);
@@ -730,7 +879,7 @@ function QRUploadSection() {
         <Check className="h-4 w-4 mr-2" /> Subir QR
       </Button>
 
-      {/* 🟩 Modal de éxito */}
+      {/* Modal de éxito */}
       <Dialog open={showSuccess} onOpenChange={setShowSuccess}>
         <DialogContent className="text-center">
           <DialogHeader>
@@ -758,5 +907,4 @@ function QRUploadSection() {
     </div>
   );
 }
-
 
