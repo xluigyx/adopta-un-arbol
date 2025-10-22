@@ -270,20 +270,29 @@ router.get("/todos", async (req, res) => {
   }
 });
 
-/* ============================================================
-   🔍 GET - Obtener todos los riegos completados (historial)
-============================================================ */
+// ============================================================
+// 🔍 GET - Obtener todos los riegos completados (historial)
+// Soporta filtro por técnico: /api/tecnico/completados?technicianId=XXXXX
+// ============================================================
 router.get("/completados", async (req, res) => {
   try {
-    const completados = await Riego.find({ status: "completed" }).sort({
-      completedAt: -1,
-    });
+    const { technicianId } = req.query;
+
+    const filtro = { status: "completed" };
+    if (technicianId) {
+      // Si guardas technicianId como ObjectId en el schema, no hace falta castear;
+      // si lo guardaste como string, igual funciona. Mongo compara por valor.
+      filtro.technicianId = technicianId;
+    }
+
+    const completados = await Riego.find(filtro).sort({ completedAt: -1 });
     res.json(completados);
   } catch (error) {
     console.error("❌ Error al obtener historial:", error);
     res.status(500).json({ msg: "Error al obtener historial de riegos" });
   }
 });
+
 // GET /api/tecnico/historial-usuario/:userId
 router.get("/historial-usuario/:userId", async (req, res) => {
   try {
