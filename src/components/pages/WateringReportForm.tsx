@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import API_BASE_URL from "../../config/api";
 
 interface WateringTask {
   _id: string;
@@ -128,7 +129,7 @@ export function WateringReportForm({
         formData.append("photoEvidence", report.photoEvidence);
 
       const res = await fetch(
-        `http://localhost:4000/api/tecnico/${task._id}/reportar`,
+        `${API_BASE_URL}/api/tecnico/${task._id}/reportar`,
         {
           method: "POST",
           body: formData,
@@ -200,7 +201,7 @@ export function WateringReportForm({
                 <img
                   src={
                     task.treeImage
-                      ? `http://localhost:4000/uploads/${task.treeImage}`
+                      ? `${API_BASE_URL}/uploads/${task.treeImage}`
                       : "/no-image.png"
                   }
                   alt={task.treeName}

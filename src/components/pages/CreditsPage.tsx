@@ -18,6 +18,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useSettings } from "../../hooks/useSettings";
+import API_BASE_URL from "../../config/api";
 
 interface CreditPackage {
   id: string;
@@ -90,7 +91,7 @@ export function CreditsPage({ onNavigate, user }: CreditsPageProps) {
   // -------- Helpers --------
   const refreshCredits = async () => {
     try {
-      const res = await fetch(`http://localhost:4000/api/usuarios/${user._id}`);
+      const res = await fetch(`${API_BASE_URL}/api/usuarios/${user._id}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const credits = data.credits ?? data.puntostotales ?? 0;
@@ -105,10 +106,10 @@ export function CreditsPage({ onNavigate, user }: CreditsPageProps) {
   useEffect(() => {
     const fetchAdminQR = async () => {
       try {
-        const res = await fetch("http://localhost:4000/api/qr");
+        const res = await fetch(`${API_BASE_URL}/api/qr`);
         const data = await res.json();
         if (data.success) {
-          setAdminQR(`http://localhost:4000${data.imageUrl}`);
+          setAdminQR(`${API_BASE_URL}${data.imageUrl}`);
         }
       } catch (error) {
         console.error("Error cargando QR del admin:", error);
@@ -183,10 +184,10 @@ export function CreditsPage({ onNavigate, user }: CreditsPageProps) {
 
       // intenta /api/pago y fallback /api/pagos si 404
       try {
-        await postTo("http://localhost:4000/api/pago");
+        await postTo(`${API_BASE_URL}/api/pago`);
       } catch (err: any) {
         if ((err?.message || "").includes("404")) {
-          await postTo("http://localhost:4000/api/pagos");
+          await postTo(`${API_BASE_URL}/api/pagos`);
         } else {
           throw err;
         }

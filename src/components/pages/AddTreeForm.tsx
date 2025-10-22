@@ -8,6 +8,7 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { TreePine, Save, X } from "lucide-react";
+import API_BASE_URL from "../../config/api";
 
 interface AddTreeFormProps {
   isOpen: boolean;
@@ -70,8 +71,8 @@ export function AddTreeForm({
       if (imagen) formDataToSend.append("imagen", imagen);
 
       const url = editingTree
-        ? `http://localhost:4000/api/planta/${editingTree._id}`
-        : "http://localhost:4000/api/planta";
+        ? `${API_BASE_URL}/api/planta/${editingTree._id}`
+        : "${API_BASE_URL}/api/planta";
 
       const method = editingTree ? "PUT" : "POST";
 

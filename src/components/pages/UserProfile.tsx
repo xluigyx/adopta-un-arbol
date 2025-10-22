@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
+import API_BASE_URL from "../../config/api";
 
 interface AdoptedTree {
   _id: string;
@@ -69,7 +70,7 @@ export function UserProfile({ onNavigate, user }: UserProfileProps) {
   const fetchData = async () => {
     try {
       // 1) Créditos reales
-      const userRes = await fetch(`http://localhost:4000/api/usuarios/${user._id}`);
+      const userRes = await fetch(`${API_BASE_URL}/api/usuarios/${user._id}`);
       const userData = await userRes.json();
       if (userRes.ok) {
         const credits = userData.credits ?? userData.puntostotales ?? 0;
@@ -78,7 +79,7 @@ export function UserProfile({ onNavigate, user }: UserProfileProps) {
       }
 
       // 2) Árboles adoptados (comparando como string)
-      const treesRes = await fetch(`http://localhost:4000/api/planta`);
+      const treesRes = await fetch(`${API_BASE_URL}/api/planta`);
       const allTrees = await treesRes.json();
       const myTrees = allTrees.filter(
         (t: any) => String(t.adoptante) === String(user._id)
@@ -87,11 +88,11 @@ export function UserProfile({ onNavigate, user }: UserProfileProps) {
 
       // 3) Historial de riegos del usuario (nuevo endpoint, fallback al anterior)
       let riegoData: any[] = [];
-      let r1 = await fetch(`http://localhost:4000/api/tecnico/historial-usuario/${user._id}`);
+      let r1 = await fetch(`${API_BASE_URL}/api/tecnico/historial-usuario/${user._id}`);
       if (r1.ok) {
         riegoData = await r1.json();
       } else {
-        const r2 = await fetch(`http://localhost:4000/api/tecnico/historial/${user._id}`);
+        const r2 = await fetch(`${API_BASE_URL}/api/tecnico/historial/${user._id}`);
         if (r2.ok) riegoData = await r2.json();
       }
       setHistorialRiegos(riegoData);
@@ -107,7 +108,7 @@ export function UserProfile({ onNavigate, user }: UserProfileProps) {
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const notifRes = await fetch(`http://localhost:4000/api/tecnico/notificaciones/${user._id}`);
+        const notifRes = await fetch(`${API_BASE_URL}/api/tecnico/notificaciones/${user._id}`);
         const data = await notifRes.json();
         if (data.success && data.nuevas.length > 0) {
           data.nuevas.forEach((r: any) =>
@@ -216,7 +217,7 @@ export function UserProfile({ onNavigate, user }: UserProfileProps) {
                       <ImageWithFallback
                         src={
                           tree.imagen
-                            ? `http://localhost:4000/uploads/${tree.imagen}`
+                            ? `${API_BASE_URL}/uploads/${tree.imagen}`
                             : "https://placehold.co/600x400?text=Árbol"
                         }
                         alt={tree.nombre}
@@ -264,7 +265,7 @@ export function UserProfile({ onNavigate, user }: UserProfileProps) {
                       <img
                         src={
                           r.photoEvidence
-                            ? `http://localhost:4000/uploads/riegos/${r.photoEvidence}`
+                            ? `${API_BASE_URL}/uploads/riegos/${r.photoEvidence}`
                             : "https://placehold.co/600x400?text=Riego"
                         }
                         alt="Evidencia"

@@ -6,6 +6,7 @@ import { Label } from '../ui/label';
 import { Checkbox } from '../ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { TreePine, User, Eye, EyeOff, MapPin, Phone, Calendar } from 'lucide-react';
+import API_BASE_URL from "../../config/api";
 
 // ✅ Props corregidas
 interface RegisterPageProps {
@@ -46,7 +47,7 @@ export function RegisterPage({ onNavigate, onRegister }: RegisterPageProps) {
     }
 
     try {
-      const res = await fetch("http://localhost:4000/api/auth/register", {
+      const res = await fetch("${API_BASE_URL}/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData)

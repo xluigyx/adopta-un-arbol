@@ -15,6 +15,7 @@ import { ImageWithFallback } from "../figma/ImageWithFallback";
 import { AddTreeForm } from "./AddTreeForm";
 import { Planta } from "../types/Planta";
 import { useSettings } from "../../hooks/useSettings";
+import API_BASE_URL from "../../config/api";
 
 // 🌳 Props del componente
 interface MapViewProps {
@@ -59,7 +60,7 @@ export function MapView({ onNavigate, user }: MapViewProps) {
   const refreshBalance = async () => {
     if (!user?._id) return;
     try {
-      const res = await fetch(`http://localhost:4000/api/usuarios/${user._id}`);
+      const res = await fetch(`${API_BASE_URL}/api/usuarios/${user._id}`);
       const data = await res.json();
       const credits = data.credits ?? data.puntostotales ?? 0;
       setUserCredits(credits);
@@ -78,10 +79,10 @@ export function MapView({ onNavigate, user }: MapViewProps) {
   // 🔹 Cargar árboles
   const fetchTrees = async () => {
     try {
-      const res = await fetch("http://localhost:4000/api/planta");
+      const res = await fetch(`${API_BASE_URL}/api/planta`);
       const data = await res.json();
 
-      const riegoRes = await fetch("http://localhost:4000/api/tecnico/pendientes");
+      const riegoRes = await fetch(`${API_BASE_URL}/api/tecnico/pendientes`);
       const riegos = await riegoRes.json();
 
       const updated = data.map((planta: Planta) => ({
@@ -138,7 +139,7 @@ export function MapView({ onNavigate, user }: MapViewProps) {
     }
 
     try {
-      const res = await fetch(`http://localhost:4000/api/planta/adopt/${treeId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/planta/adopt/${treeId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -177,7 +178,7 @@ export function MapView({ onNavigate, user }: MapViewProps) {
     }
 
     try {
-      const res = await fetch("http://localhost:4000/api/tecnico/solicitar", {
+      const res = await fetch(`${API_BASE_URL}/api/tecnico/solicitar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -212,7 +213,7 @@ export function MapView({ onNavigate, user }: MapViewProps) {
   // 🗑️ Eliminar árbol
   const handleDeleteTree = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:4000/api/planta/${id}`, { method: "DELETE" });
+      const res = await fetch(`${API_BASE_URL}/api/planta/${id}`, { method: "DELETE" });
       const data = await res.json();
       if (res.ok) {
         toast.success("🗑️ Árbol eliminado correctamente");
@@ -318,7 +319,7 @@ export function MapView({ onNavigate, user }: MapViewProps) {
                 <div className="space-y-4">
                   <div className="aspect-video rounded-lg overflow-hidden shadow">
                     <ImageWithFallback
-                      src={`http://localhost:4000/uploads/${selectedTree.imagen}`}
+                      src={`${API_BASE_URL}/uploads/${selectedTree.imagen}`}
                       alt={selectedTree.nombre}
                       className="w-full h-full object-cover"
                     />
@@ -407,7 +408,7 @@ export function MapView({ onNavigate, user }: MapViewProps) {
               </div>
               {treeToDelete?.imagen && (
                 <img
-                  src={`http://localhost:4000/uploads/${treeToDelete.imagen}`}
+                  src={`${API_BASE_URL}/uploads/${treeToDelete.imagen}`}
                   alt={treeToDelete.nombre}
                   className="w-20 h-20 object-cover rounded-lg border"
                 />

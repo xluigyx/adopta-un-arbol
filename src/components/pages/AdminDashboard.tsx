@@ -36,6 +36,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { useSettings } from "../../hooks/useSettings";
+import API_BASE_URL from "../../config/api";
 
 /* ======================== Tipos ======================== */
 interface AdoptionRequest {
@@ -146,13 +147,13 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const resUsers = await fetch("http://localhost:4000/api/admin/users");
+        const resUsers = await fetch("${API_BASE_URL}/api/admin/users");
         setUsers(await resUsers.json());
 
-        const resPayments = await fetch("http://localhost:4000/api/admin/payments");
+        const resPayments = await fetch("${API_BASE_URL}/api/admin/payments");
         setPaymentRequests(await resPayments.json());
 
-        const resWatering = await fetch("http://localhost:4000/api/tecnico/todos");
+        const resWatering = await fetch("${API_BASE_URL}/api/tecnico/todos");
         const dataWatering: WateringRequest[] = await resWatering.json();
         const withPago = dataWatering.map((w) => ({ ...w, pago: getPagoState(w._id) }));
         setWateringRequests(withPago);
@@ -207,7 +208,7 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
     if (riego.status === "completed" && (!riego.completedAt || !riego.completionStatus)) {
       try {
         setLoadingReport(true);
-        const res = await fetch("http://localhost:4000/api/tecnico/todos");
+        const res = await fetch("${API_BASE_URL}/api/tecnico/todos");
         const list: WateringRequest[] = await res.json();
         const full = list.find((x) => String(x._id) === String(riego._id));
         if (full) setSelectedRiego(full);
@@ -238,7 +239,7 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
   const handlePaymentAction = async (id: string, action: "approve" | "reject") => {
     try {
       const estado = action === "approve" ? "Aprobado" : "Rechazado";
-      const res = await fetch(`http://localhost:4000/api/pago/${id}/estado`, {
+      const res = await fetch(`${API_BASE_URL}/api/pago/${id}/estado`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ estado }),
@@ -516,7 +517,7 @@ function QRUploadSection() {
     if (!file) return;
     const form = new FormData();
     form.append("qrImage", file);
-    const res = await fetch("http://localhost:4000/api/qr", { method: "POST", body: form });
+    const res = await fetch(`${API_BASE_URL}/api/qr`, { method: "POST", body: form });
     const data = await res.json();
     if (data.success) toast.success("QR actualizado");
   };
@@ -591,7 +592,7 @@ function PricesTab() {
         waterPrice: local.costs.wateringCost,
         creditPackages: local.packages,
       };
-      const res = await fetch("http://localhost:4000/api/settings", {
+      const res = await fetch(`${API_BASE_URL}/api/settings`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

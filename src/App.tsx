@@ -14,10 +14,12 @@ import { TechnicianView } from "./components/pages/TechnicianView";
 import { HistoryPage } from "./components/pages/HistoryPage";
 import { StatisticsPage } from "./components/pages/StatisticsPage";
 
+// ✅ Importa URL base global
+import API_BASE_URL from "./config/api";
+
 export default function App() {
   const [currentView, setCurrentView] = useState("home");
 
-  // ✅ Usuario actual
   const [currentUser, setCurrentUser] = useState<{
     _id: string;
     name: string;
@@ -27,7 +29,6 @@ export default function App() {
     credits: number;
   } | null>(null);
 
-  // 🔹 Cambiar de vista
   const handleNavigate = (view: string) => {
     if (view === "login" || view === "register") {
       setCurrentView(view);
@@ -49,20 +50,15 @@ export default function App() {
           if (["admin-dashboard", "map"].includes(view)) setCurrentView(view);
           break;
         case "technician":
-          if (["technician-dashboard", "map"].includes(view))
-            setCurrentView(view);
+          if (["technician-dashboard", "map"].includes(view)) setCurrentView(view);
           break;
         case "user":
-          if (
-            ["map", "species", "profile", "credits", "history", "statistics"].includes(view)
-          )
+          if (["map", "species", "profile", "credits", "history", "statistics"].includes(view))
             setCurrentView(view);
           break;
       }
-    } else {
-      if (["home", "map", "species", "login", "register"].includes(view)) {
-        setCurrentView(view);
-      }
+    } else if (["home", "map", "species", "login", "register"].includes(view)) {
+      setCurrentView(view);
     }
   };
 
@@ -72,7 +68,7 @@ export default function App() {
     credentials: { email: string; password: string }
   ) => {
     try {
-      const res = await fetch("http://localhost:4000/api/auth/login", {
+      const res = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(credentials),
@@ -127,7 +123,6 @@ export default function App() {
     }
   };
 
-  // 🔹 Registro temporal
   const handleRegister = (userData: any) => {
     const newUser = {
       _id: "temp-id",
@@ -137,23 +132,16 @@ export default function App() {
       joinDate: userData.joinDate,
       credits: userData.credits,
     };
-
     setCurrentUser(newUser);
     setCurrentView("map");
   };
 
-  // 🔹 Render según vista actual
   const renderCurrentView = () => {
-    if (currentView === "login") {
+    if (currentView === "login")
       return <LoginPage onNavigate={handleNavigate} onLogin={handleLogin} />;
-    }
-    if (currentView === "register") {
-      return (
-        <RegisterPage onNavigate={handleNavigate} onRegister={handleRegister} />
-      );
-    }
+    if (currentView === "register")
+      return <RegisterPage onNavigate={handleNavigate} onRegister={handleRegister} />;
 
-    // Si no hay usuario
     if (!currentUser) {
       switch (currentView) {
         case "home":
@@ -167,32 +155,15 @@ export default function App() {
       }
     }
 
-    // Si hay usuario logueado
     switch (currentUser.role) {
       case "admin":
-        switch (currentView) {
-          case "admin-dashboard":
-            return <AdminDashboard onNavigate={handleNavigate} />;
-          case "map":
-            return <MapView onNavigate={handleNavigate} user={currentUser} />;
-          default:
-            return <AdminDashboard onNavigate={handleNavigate} />;
-        }
-
+        return currentView === "map"
+          ? <MapView onNavigate={handleNavigate} user={currentUser} />
+          : <AdminDashboard onNavigate={handleNavigate} />;
       case "technician":
-        switch (currentView) {
-          case "technician-dashboard":
-            return (
-              <TechnicianView onNavigate={handleNavigate} user={currentUser} />
-            );
-          case "map":
-            return <MapView onNavigate={handleNavigate} user={currentUser} />;
-          default:
-            return (
-              <TechnicianView onNavigate={handleNavigate} user={currentUser} />
-            );
-        }
-
+        return currentView === "map"
+          ? <MapView onNavigate={handleNavigate} user={currentUser} />
+          : <TechnicianView onNavigate={handleNavigate} user={currentUser} />;
       case "user":
         switch (currentView) {
           case "map":
@@ -210,7 +181,6 @@ export default function App() {
           default:
             return <MapView onNavigate={handleNavigate} user={currentUser} />;
         }
-
       default:
         return <LandingPage onNavigate={handleNavigate} />;
     }
@@ -221,11 +191,7 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col">
       {showHeaderFooter && (
-        <Header
-          currentView={currentView}
-          onNavigate={handleNavigate}
-          user={currentUser}
-        />
+        <Header currentView={currentView} onNavigate={handleNavigate} user={currentUser} />
       )}
 
       <main className={showHeaderFooter ? "flex-1" : "min-h-screen"}>
@@ -233,7 +199,6 @@ export default function App() {
       </main>
 
       {showHeaderFooter && <Footer onNavigate={handleNavigate} />}
-
       <Toaster position="top-right" richColors />
     </div>
   );

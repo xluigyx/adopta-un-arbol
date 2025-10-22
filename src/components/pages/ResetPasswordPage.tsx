@@ -4,6 +4,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { TreePine } from "lucide-react";
+import API_BASE_URL from "../../config/api";
 
 interface ResetPasswordPageProps {
   onNavigate: (view: string) => void;
@@ -18,7 +19,7 @@ export function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps) {
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch("http://localhost:4000/api/password/reset", {
+      const res = await fetch("${API_BASE_URL}/api/password/reset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, newPassword: password }),

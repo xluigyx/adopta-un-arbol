@@ -4,6 +4,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { TreePine } from "lucide-react";
+import API_BASE_URL from "../../config/api";
 
 interface RecoverPasswordPageProps {
   onNavigate: (view: string) => void;
@@ -16,7 +17,7 @@ export function RecoverPasswordPage({ onNavigate }: RecoverPasswordPageProps) {
   const handleRecover = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch("http://localhost:4000/api/password/recover", {
+      const res = await fetch("${API_BASE_URL}/api/password/recover", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),

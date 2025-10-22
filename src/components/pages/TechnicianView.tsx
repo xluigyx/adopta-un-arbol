@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { MapPin, Droplets, Eye, Loader2, Clock, User2, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { WateringReportForm } from "./WateringReportForm";
+import API_BASE_URL from "../../config/api";
 
 interface RiegoTask {
   _id: string;
@@ -70,7 +71,7 @@ export function TechnicianView({ user, onNavigate }: TechnicianViewProps) {
   // 📥 Cargar solicitudes asignadas / pendientes
   const fetchTasks = async () => {
     try {
-      const res = await fetch("http://localhost:4000/api/tecnico/pendientes");
+      const res = await fetch("${API_BASE_URL}/api/tecnico/pendientes");
       const data = await res.json();
 
       if (!res.ok) throw new Error(data.msg || "Error al obtener solicitudes");
@@ -89,7 +90,7 @@ const fetchHistory = async () => {
     setLoadingHistory(true);
     // 🔴 ahora pedimos al backend que filtre por técnico
     const res = await fetch(
-      `http://localhost:4000/api/tecnico/completados?technicianId=${encodeURIComponent(
+      `${API_BASE_URL}/api/tecnico/completados?technicianId=${encodeURIComponent(
         user._id
       )}`
     );
@@ -127,7 +128,7 @@ const fetchHistory = async () => {
   // 🔧 Iniciar tarea (actualiza estado a in-progress)
   const handleStartTask = async (taskId: string) => {
     try {
-      const res = await fetch(`http://localhost:4000/api/tecnico/${taskId}/estado`, {
+      const res = await fetch(`${API_BASE_URL}/api/tecnico/${taskId}/estado`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -249,7 +250,7 @@ const fetchHistory = async () => {
                       {/* 🌿 Imagen del árbol */}
                       {task.treeImage ? (
                         <img
-                          src={`http://localhost:4000/uploads/${task.treeImage}`}
+                          src={`${API_BASE_URL}/uploads/${task.treeImage}`}
                           alt={task.treeName}
                           className="rounded-lg shadow-md mb-3 h-44 w-full object-cover border border-green-100"
                         />
@@ -337,7 +338,7 @@ const fetchHistory = async () => {
                     <div className="aspect-video bg-gray-50 overflow-hidden">
                       {h.photoEvidence ? (
                         <img
-                          src={`http://localhost:4000/uploads/riegos/${h.photoEvidence}`}
+                          src={`${API_BASE_URL}/uploads/riegos/${h.photoEvidence}`}
                           alt="evidencia"
                           className="w-full h-full object-cover"
                         />
