@@ -11,6 +11,7 @@ import pagoRoutes from "./routes/pagos.js";
 import qrRoutes from "./routes/qr.js"; 
 import usuarioRoutes from "./routes/usuario.js";
 import tecnicoRoutes from "./routes/tecnico.js";
+import settingsRouter from "./routes/settings.js";
 
 
 
@@ -34,6 +35,7 @@ app.use("/api/pago", pagoRoutes);
 app.use("/api/qr", qrRoutes);
 app.use("/api/usuarios", usuarioRoutes);
 app.use("/api/tecnico", tecnicoRoutes); // Rutas para técnicos
+app.use("/api/settings", settingsRouter);
 
 // Conectar a MongoDB
 mongoose

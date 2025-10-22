@@ -4,6 +4,8 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import Riego from "../models/Riego.js";
+import Settings from "../models/Settings.js";
+import Usuario from "../models/Usuario.js"; // asegúrate que la ruta es correcta
 
 const router = express.Router();
 
@@ -138,9 +140,9 @@ router.post("/:id/reportar", upload.single("photoEvidence"), async (req, res) =>
     } = req.body;
 
     const riego = await Riego.findById(req.params.id);
-    if (!riego)
-      return res.status(404).json({ msg: "Solicitud de riego no encontrada" });
+    if (!riego) return res.status(404).json({ msg: "Solicitud de riego no encontrada" });
 
+    // Guardar reporte
     riego.completionStatus = completionStatus;
     riego.waterAmount = waterAmount;
     riego.duration = duration;
@@ -152,12 +154,26 @@ router.post("/:id/reportar", upload.single("photoEvidence"), async (req, res) =>
     riego.technicianId = technicianId;
     riego.technicianName = technicianName;
     riego.completedAt = new Date();
-
-    if (req.file) {
-      riego.photoEvidence = req.file.filename;
-    }
-
+    if (req.file) riego.photoEvidence = req.file.filename;
     await riego.save();
+
+    // 🔻 Descontar créditos del solicitante según Settings.waterPrice
+    try {
+      const settings = (await Settings.findOne()) || { waterPrice: 10 };
+      const costoRiego = Number(settings.waterPrice ?? 10);
+      if (riego.requesterId && costoRiego > 0) {
+        const user = await Usuario.findById(riego.requesterId);
+        if (user) {
+          const actual = Number(user.puntostotales ?? user.credits ?? 0);
+          const nuevo  = Math.max(0, actual - costoRiego);
+          user.puntostotales = nuevo;
+          user.credits = nuevo; // si también usas "credits" en el front
+          await user.save();
+        }
+      }
+    } catch (descErr) {
+      console.error("⚠️ No se pudo descontar créditos:", descErr);
+    }
 
     res.json({ msg: "✅ Reporte de riego guardado exitosamente", riego });
   } catch (error) {

@@ -1,29 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "../ui/dialog";
-import {
-  MapPin,
-  TreePine,
-  Heart,
-  Droplets,
-  Plus,
-  Edit,
-  Trash2,
-} from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { MapPin, TreePine, Heart, Droplets, Plus, Edit, Trash2 } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -32,6 +14,7 @@ import { toast } from "sonner";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
 import { AddTreeForm } from "./AddTreeForm";
 import { Planta } from "../types/Planta";
+import { useSettings } from "../../hooks/useSettings";
 
 // 🌳 Props del componente
 interface MapViewProps {
@@ -57,6 +40,10 @@ function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number
 }
 
 export function MapView({ onNavigate, user }: MapViewProps) {
+  const { settings } = useSettings();
+  const adoptCost = settings.costs.adoptCost;       // créditos por adoptar (local)
+  const wateringCost = settings.costs.wateringCost; // créditos por riego (local)
+
   const [trees, setTrees] = useState<Planta[]>([]);
   const [selectedTree, setSelectedTree] = useState<Planta | null>(null);
   const [showAddTreeForm, setShowAddTreeForm] = useState(false);
@@ -65,27 +52,25 @@ export function MapView({ onNavigate, user }: MapViewProps) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [treeToDelete, setTreeToDelete] = useState<Planta | null>(null);
 
-  // 💰 Créditos sincronizados desde backend
+  // 💰 Créditos sincronizados desde backend (solo lectura)
   const [userCredits, setUserCredits] = useState<number>(0);
 
-  // 🔹 Función para obtener créditos actualizados desde el backend
-const refreshBalance = async () => {
-  if (!user?._id) return;
-  try {
-    const res = await fetch(`http://localhost:4000/api/usuarios/${user._id}`);
-    const data = await res.json();
+  // 🔹 Obtener créditos actualizados desde el backend
+  const refreshBalance = async () => {
+    if (!user?._id) return;
+    try {
+      const res = await fetch(`http://localhost:4000/api/usuarios/${user._id}`);
+      const data = await res.json();
+      const credits = data.credits ?? data.puntostotales ?? 0;
+      setUserCredits(credits);
+      localStorage.setItem("usuario", JSON.stringify({ ...data, credits }));
+    } catch (err) {
+      console.error("❌ Error al cargar balance:", err);
+      toast.error("Error al obtener créditos del servidor.");
+    }
+  };
 
-    const credits = data.credits ?? data.puntostotales ?? 0;
-    setUserCredits(credits);
-    localStorage.setItem("usuario", JSON.stringify({ ...data, credits }));
-  } catch (err) {
-    console.error("❌ Error al cargar balance:", err);
-    toast.error("Error al obtener créditos del servidor.");
-  }
-};
-
-
-  // Cargar créditos al montar
+  // Cargar créditos al montar/cambiar usuario
   useEffect(() => {
     refreshBalance();
   }, [user]);
@@ -137,7 +122,7 @@ const refreshBalance = async () => {
     }),
   };
 
-  // 💚 Adoptar árbol (35 créditos)
+  // 💚 Adoptar árbol (usa adoptCost local)
   const handleAdoptTree = async (treeId: string) => {
     if (!user?._id) {
       toast.error("Debes iniciar sesión para adoptar.");
@@ -146,8 +131,8 @@ const refreshBalance = async () => {
 
     await refreshBalance();
 
-    if (userCredits < 35) {
-      toast.warning("💰 No tienes suficientes créditos (35 requeridos). Redirigiendo...");
+    if (userCredits < adoptCost) {
+      toast.warning(`💰 No tienes suficientes créditos (${adoptCost} requeridos). Redirigiendo...`);
       setTimeout(() => onNavigate("credits"), 1500);
       return;
     }
@@ -156,7 +141,11 @@ const refreshBalance = async () => {
       const res = await fetch(`http://localhost:4000/api/planta/adopt/${treeId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ usuarioId: user._id }),
+        body: JSON.stringify({
+          usuarioId: user._id,
+          // Si quieres que el backend sepa el costo (opcional; si lo ignora no pasa nada)
+          cost: adoptCost,
+        }),
       });
 
       const data = await res.json();
@@ -172,7 +161,7 @@ const refreshBalance = async () => {
     }
   };
 
-  // 💧 Solicitar riego (10 créditos)
+  // 💧 Solicitar riego (usa wateringCost local)
   const handleWaterRequest = async (tree: Planta) => {
     if (!user?._id) {
       toast.warning("⚠️ Debes iniciar sesión para solicitar un riego.");
@@ -181,8 +170,8 @@ const refreshBalance = async () => {
 
     await refreshBalance();
 
-    if (userCredits < 10) {
-      toast.warning("💧 No tienes suficientes créditos (10 requeridos). Redirigiendo...");
+    if (userCredits < wateringCost) {
+      toast.warning(`💧 No tienes suficientes créditos (${wateringCost} requeridos). Redirigiendo...`);
       setTimeout(() => onNavigate("credits"), 1500);
       return;
     }
@@ -197,6 +186,8 @@ const refreshBalance = async () => {
           treeId: tree._id,
           treeName: tree.nombre,
           location: tree.direccion || "Ubicación desconocida",
+          // opcional: enviamos costo
+          cost: wateringCost,
         }),
       });
 
@@ -246,9 +237,19 @@ const refreshBalance = async () => {
                 ? "Gestiona, edita y elimina árboles del sistema"
                 : "Explora, adopta o solicita riego 🌱"}
             </p>
-            <p className="text-sm text-green-700 font-medium mt-1">
-              Créditos disponibles: {userCredits}
-            </p>
+
+            {/* Créditos y costos actuales (local) */}
+            <div className="mt-2 flex flex-wrap gap-2 items-center">
+              <span className="text-sm text-green-700 font-medium">
+                Créditos disponibles: {userCredits}
+              </span>
+              <Badge className="bg-green-100 text-green-800">
+                Adoptar: {adoptCost} cr
+              </Badge>
+              <Badge className="bg-blue-100 text-blue-800">
+                Riego: {wateringCost} cr
+              </Badge>
+            </div>
           </div>
 
           {user?.role === "admin" && (
@@ -286,7 +287,7 @@ const refreshBalance = async () => {
                 key={tree._id}
                 position={[tree.latitud, tree.longitud]}
                 icon={
-                  tree.riegoActivo
+                  (tree as any).riegoActivo
                     ? icons.watering
                     : icons[tree.estadoactual === "adopted" ? "adopted" : "available"]
                 }
@@ -329,7 +330,7 @@ const refreshBalance = async () => {
                       className="w-full bg-green-600 hover:bg-green-700"
                       onClick={() => handleAdoptTree(selectedTree._id)}
                     >
-                      <Heart className="mr-2 h-4 w-4" /> Adoptar (35 créditos)
+                      <Heart className="mr-2 h-4 w-4" /> Adoptar ({adoptCost} créditos)
                     </Button>
                   )}
 
@@ -338,7 +339,7 @@ const refreshBalance = async () => {
                       className="w-full bg-blue-600 hover:bg-blue-700"
                       onClick={() => handleWaterRequest(selectedTree)}
                     >
-                      <Droplets className="mr-2 h-4 w-4" /> Regar (10 créditos)
+                      <Droplets className="mr-2 h-4 w-4" /> Regar ({wateringCost} créditos)
                     </Button>
                   )}
 
