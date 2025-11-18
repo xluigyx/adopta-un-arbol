@@ -47,11 +47,12 @@ export function RegisterPage({ onNavigate, onRegister }: RegisterPageProps) {
     }
 
     try {
-      const res = await fetch("${API_BASE_URL}/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
+      const res = await fetch(`/api/auth/register`, {  // ✅ Backticks y URL correcta
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(formData)
+});
+
 
       const data = await res.json();
 
@@ -274,7 +275,7 @@ export function RegisterPage({ onNavigate, onRegister }: RegisterPageProps) {
                 <Checkbox
                   id="terms"
                   checked={agreedToTerms}
-                  onCheckedChange={setAgreedToTerms}
+                  onCheckedChange={(checked) => setAgreedToTerms(checked === true)}
                 />
                 <div className="text-sm leading-relaxed">
                   <Label htmlFor="terms" className="cursor-pointer">
