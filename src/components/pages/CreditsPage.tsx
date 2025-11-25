@@ -17,7 +17,6 @@ import {
   X,
   AlertTriangle,
 } from "lucide-react";
-import { useSettings } from "../../hooks/useSettings";
 
 interface CreditPackage {
   id: string;
@@ -27,7 +26,7 @@ interface CreditPackage {
   originalPrice?: number;
   popular?: boolean;
   bonus?: number;
-  description?: string;
+  description: string;
 }
 
 interface CreditsPageProps {
@@ -57,35 +56,6 @@ export function CreditsPage({ onNavigate, user }: CreditsPageProps) {
 
   // Créditos actualizados desde backend
   const [userCredits, setUserCredits] = useState<number>(0);
-
-  // ===== Settings (precios/paquetes) =====
-  const { settings } = useSettings();
-
-  // Fallback por si el admin aún no configuró nada
-  const defaultPackages: CreditPackage[] = [
-    { id: "starter",    name: "Paquete Inicial",   credits: 10,  price: 35,  description: "Perfecto para adoptar tu primer árbol" },
-    { id: "family",     name: "Paquete Familiar",  credits: 25,  price: 80,  originalPrice: 100, bonus: 3,  description: "Ideal para familias comprometidas con el ambiente" },
-    { id: "community",  name: "Paquete Comunidad", credits: 50,  price: 125, originalPrice: 160, bonus: 8,  description: "Para comunidades que quieren hacer un gran impacto", popular: true },
-    { id: "enterprise", name: "Paquete Empresa",   credits: 100, price: 200, originalPrice: 300, bonus: 20, description: "Para empresas con responsabilidad social" },
-  ];
-
-  // Normaliza paquetes desde settings → CreditPackage
-  const creditPackages: CreditPackage[] =
-    Array.isArray((settings as any)?.packages) && (settings as any)?.packages.length > 0
-      ? (settings as any).packages.map((p: any) => ({
-          id: String(p.id ?? p.name ?? crypto.randomUUID()),
-          name: String(p.name ?? "Paquete"),
-          credits: Number(p.credits ?? 0),
-          price: Number(p.price ?? 0),
-          originalPrice: p.originalPrice != null ? Number(p.originalPrice) : undefined,
-          bonus: p.bonus != null ? Number(p.bonus) : undefined,
-          description: p.description || "Créditos para apoyar la reforestación 🌱",
-          popular: p.popular != null ? Boolean(p.popular) : Number(p.credits ?? 0) >= 50,
-        }))
-      : defaultPackages;
-
-  // Paquete seleccionado
-  const selectedPkg = creditPackages.find((pkg) => pkg.id === selectedPackage);
 
   // -------- Helpers --------
   const refreshCredits = async () => {
@@ -121,6 +91,16 @@ export function CreditsPage({ onNavigate, user }: CreditsPageProps) {
     refreshCredits();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?._id]);
+
+  // Lista de paquetes
+  const creditPackages: CreditPackage[] = [
+    { id: "starter", name: "Paquete Inicial", credits: 10, price: 35, description: "Perfecto para adoptar tu primer árbol" },
+    { id: "family", name: "Paquete Familiar", credits: 25, price: 80, originalPrice: 100, bonus: 3, description: "Ideal para familias comprometidas con el ambiente" },
+    { id: "community", name: "Paquete Comunidad", credits: 50, price: 125, originalPrice: 160, popular: true, bonus: 8, description: "Para comunidades que quieren hacer un gran impacto" },
+    { id: "enterprise", name: "Paquete Empresa", credits: 100, price: 200, originalPrice: 300, bonus: 20, description: "Para empresas con responsabilidad social" },
+  ];
+
+  const selectedPkg = creditPackages.find((pkg) => pkg.id === selectedPackage);
 
   const handlePurchase = () => {
     if (!selectedPkg) return;
@@ -161,42 +141,57 @@ export function CreditsPage({ onNavigate, user }: CreditsPageProps) {
       formData.append("notas", paymentNotes);
       formData.append("comprobante", paymentProof); // nombre esperado más común
 
-      const postTo = async (url: string) => {
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "x-token": token },
-          body: formData,
-        });
+      // helper de post (maneja errores y JSON no válidos)
+     const postTo = async (url: string) => {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "x-token": token,
+      // ⚠️ IMPORTANTE: NO poner Content-Type aquí, rompe FormData
+    },
+    body: formData,
+  });
 
-        let data: any = null;
-        try {
-          data = await res.json();
-        } catch {
-          const text = await res.text();
-          throw new Error(`Respuesta no JSON (${res.status}): ${text?.slice(0, 180)}`);
-        }
-        if (!res.ok || data?.success === false) {
-          throw new Error(data?.message || data?.msg || `HTTP ${res.status}`);
-        }
-        return data;
-      };
+  // Leemos SIEMPRE como texto, porque puede NO ser JSON
+  const raw = await res.text();
+  let data: any = null;
+
+  try {
+    data = JSON.parse(raw); // si es JSON, OK
+  } catch {
+    console.error("❌ Respuesta NO JSON desde backend:", raw);
+    throw new Error(`Backend devolvió algo que no es JSON: ${raw.slice(0, 120)}`);
+  }
+
+  if (!res.ok || data.success === false) {
+    throw new Error(data.message || data.msg || `Error HTTP ${res.status}`);
+  }
+
+  return data;
+};
+
 
       // intenta /api/pago y fallback /api/pagos si 404
+      let data = null;
       try {
-        await postTo("http://localhost:4000/api/pago");
+        data = await postTo("http://localhost:4000/api/pago");
       } catch (err: any) {
         if ((err?.message || "").includes("404")) {
-          await postTo("http://localhost:4000/api/pagos");
+          data = await postTo("http://localhost:4000/api/pagos");
         } else {
           throw err;
         }
       }
 
+      // Éxito visual
       setShowSuccessModal(true);
       setShowPaymentProof(false);
+
+      // Refrescar créditos desde backend
       await refreshCredits();
     } catch (error: any) {
       console.error("Error al subir comprobante:", error);
+      // Además del modal genérico, mostramos causa real (opcional)
       alert(`Error al enviar comprobante: ${error?.message || error}`);
       setShowErrorModal(true);
     } finally {
@@ -223,7 +218,7 @@ export function CreditsPage({ onNavigate, user }: CreditsPageProps) {
           </div>
         </div>
 
-        {/* Lista de paquetes (dinámicos) */}
+        {/* Lista de paquetes */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
           {creditPackages.map((pkg) => (
             <Card
@@ -245,17 +240,17 @@ export function CreditsPage({ onNavigate, user }: CreditsPageProps) {
                 <CardTitle className="text-lg text-green-900">{pkg.name}</CardTitle>
               </CardHeader>
               <CardContent className="text-center space-y-3">
-                {pkg.description && <p className="text-gray-600 text-sm">{pkg.description}</p>}
+                <p className="text-gray-600 text-sm">{pkg.description}</p>
                 <div className="text-2xl font-bold text-green-700">
                   Bs {pkg.price}
                 </div>
                 <div className="text-gray-800 text-sm">
                   {pkg.credits} créditos{" "}
-                  {pkg.bonus ? (
+                  {pkg.bonus && (
                     <span className="text-green-600 font-semibold">
                       (+{pkg.bonus} bonus)
                     </span>
-                  ) : null}
+                  )}
                 </div>
                 {selectedPackage === pkg.id && (
                   <div className="flex justify-center">
@@ -405,7 +400,10 @@ export function CreditsPage({ onNavigate, user }: CreditsPageProps) {
                   <p className="text-gray-600 mb-4">
                     Hubo un problema al subir tu comprobante. Inténtalo nuevamente.
                   </p>
-                  <Button variant="destructive" onClick={() => setShowErrorModal(false)}>
+                  <Button
+                    variant="destructive"
+                    onClick={() => setShowErrorModal(false)}
+                  >
                     Cerrar
                   </Button>
                 </DialogContent>

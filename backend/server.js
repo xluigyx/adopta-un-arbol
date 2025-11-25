@@ -4,44 +4,70 @@ import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+
 import authRoutes from "./routes/auth.js";
 import adminRoutes from "./routes/admin.js";
 import plantaRoutes from "./routes/planta.js";
 import pagoRoutes from "./routes/pagos.js";
-import qrRoutes from "./routes/qr.js"; 
+import qrRoutes from "./routes/qr.js";
 import usuarioRoutes from "./routes/usuario.js";
 import tecnicoRoutes from "./routes/tecnico.js";
 import settingsRouter from "./routes/settings.js";
 
-
-
 dotenv.config();
 
 const app = express();
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// ============================
+// 📁 SERVIR ARCHIVOS ESTÁTICOS
+// ============================
+
+// Carpeta general
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// Middlewares
+// Comprobantes de pago
+app.use(
+  "/uploads/comprobantes",
+  express.static(path.join(__dirname, "uploads/comprobantes"))
+);
+
+// Fotos de riegos (por si tu técnico sube imágenes)
+app.use(
+  "/uploads/riegos",
+  express.static(path.join(__dirname, "uploads/riegos"))
+);
+
+// =================================
+// 🧩 Middlewares
+// =================================
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Rutas
+// =================================
+// 🛣️ Rutas
+// =================================
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/tecnico", tecnicoRoutes);
 app.use("/api/planta", plantaRoutes);
-app.use("/api/pago", pagoRoutes);
+app.use("/api/pago", pagoRoutes);   // ✔ POST comprobantes + PUT estado
 app.use("/api/qr", qrRoutes);
 app.use("/api/usuarios", usuarioRoutes);
-app.use("/api/tecnico", tecnicoRoutes); // Rutas para técnicos
 app.use("/api/settings", settingsRouter);
 
-// Conectar a MongoDB
+// =================================
+// 🟢 Conexión a MongoDB
+// =================================
 mongoose
   .connect(process.env.MONGO_URI || "mongodb://127.0.0.1:27017/Arbolitos")
   .then(() => {
     console.log("✅ Conectado a MongoDB");
-    app.listen(4000, () => console.log("🌱 Servidor backend en http://localhost:4000"));
+    app.listen(4000, () =>
+      console.log("🌱 Servidor backend en http://localhost:4000")
+    );
   })
   .catch((err) => console.error("❌ Error en MongoDB:", err));
