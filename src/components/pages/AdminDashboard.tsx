@@ -719,23 +719,28 @@ function PricesTab() {
   useEffect(() => setLocal(settings), [settings]);
 
   /* ===========================
-        VALIDACIONES GLOBALES
+        VALIDACIONES
   ==============================*/
+
+  // ✔ Permite borrar libremente
   const validateName = (name: string) => {
-  const trimmed = name.trim();
+    const trimmed = name.trim();
 
-  if (trimmed.length < 2 || trimmed.length > 30)
-    return "El nombre debe tener entre 2 y 30 caracteres.";
+    // Validar solo si hay texto
+    if (trimmed.length > 0) {
+      if (trimmed.length < 2 || trimmed.length > 30)
+        return "El nombre debe tener entre 2 y 30 caracteres.";
 
-  if (!/^[a-zA-Z0-9 ]+$/.test(trimmed))
-    return "El nombre solo puede contener letras y números.";
+      if (!/^[a-zA-Z0-9 ]+$/.test(trimmed))
+        return "El nombre solo puede contener letras y números.";
+    }
 
-  return null;
-};
-
+    return null;
+  };
 
   const validateDesc = (d: string) => {
-    if (d.trim().length < 5 || d.trim().length > 120)
+    const t = d.trim();
+    if (t.length < 5 || t.length > 120)
       return "La descripción debe tener entre 5 y 120 caracteres.";
     return null;
   };
@@ -758,51 +763,12 @@ function PricesTab() {
   /* ===========================
           ACTUALIZAR PAQUETE
   ============================*/
+
   const updatePackage = (id: string, patch: any) =>
     setLocal((prev) => {
       const updated = prev.packages.map((p) =>
         p.id === id ? { ...p, ...patch } : p
       );
-
-      const pkg = updated.find((p) => p.id === id);
-      if (!pkg) return prev;
-
-      // Validar nombres
-      if ("name" in patch) {
-        const err = validateName(patch.name);
-        if (err) return toast.error(err), prev;
-
-        // Evitar duplicados
-        const duplicates = updated.filter(
-          (x) => x.name.trim().toLowerCase() === patch.name.trim().toLowerCase()
-        );
-        if (duplicates.length > 1)
-          return toast.error("Ya existe otro paquete con ese nombre."), prev;
-      }
-
-      // Validar descripción
-      if ("description" in patch) {
-        const err = validateDesc(patch.description);
-        if (err) return toast.error(err), prev;
-      }
-
-      // Créditos
-      if ("credits" in patch) {
-        const err = validateNumber(patch.credits, 1, 9999, "Los créditos");
-        if (err) return toast.error(err), prev;
-      }
-
-      // Precio
-      if ("price" in patch) {
-        const err = validateNumber(patch.price, 1, 9999, "El precio");
-        if (err) return toast.error(err), prev;
-      }
-
-      // Bonus
-      if ("bonus" in patch) {
-        const err = validateNumber(patch.bonus, 0, 9999, "El bonus");
-        if (err) return toast.error(err), prev;
-      }
 
       return { ...prev, packages: updated };
     });
@@ -810,6 +776,7 @@ function PricesTab() {
   /* ===========================
           CRUD DE PAQUETES
   ============================*/
+
   const addPackage = () =>
     setLocal((prev) => ({
       ...prev,
@@ -837,6 +804,61 @@ function PricesTab() {
   ============================*/
   const saveChanges = async () => {
     setSaving(true);
+
+    // 🔥 VALIDAR TODOS LOS PAQUETES ANTES DE GUARDAR
+    for (const pkg of local.packages) {
+      const e1 = validateName(pkg.name);
+      if (e1) {
+        toast.error(`Error en "${pkg.name}": ${e1}`);
+        setSaving(false);
+        setConfirmOpen(false);
+        return;
+      }
+
+     const e3 = validateNumber(Number(pkg.credits), 1, 9999, "Créditos");
+      if (e3) {
+        toast.error(`Error en paquete "${pkg.name}": ${e3}`);
+        setSaving(false);
+        return;
+      }
+
+      const e4 = validateNumber(Number(pkg.price), 1, 9999, "Precio");
+      if (e4) {
+        toast.error(`Error en paquete "${pkg.name}": ${e4}`);
+        setSaving(false);
+        return;
+      }
+
+      const e5 = validateNumber(Number(pkg.bonus), 0, 9999, "Bonus");
+      if (e5) {
+        toast.error(`Error en paquete "${pkg.name}": ${e5}`);
+        setSaving(false);
+        return;
+      }
+
+      const e6 = validateDesc(pkg.description ?? "");
+
+      if (e6) {
+        toast.error(`Error en paquete "${pkg.name}": ${e6}`);
+        setSaving(false);
+        return;
+      }
+    }
+
+    // Evitar duplicados por nombre
+    const names = local.packages.map((p) =>
+      p.name.trim().toLowerCase()
+    );
+    const duplicates = names.filter(
+      (n, i) => names.indexOf(n) !== i
+    );
+
+    if (duplicates.length > 0) {
+      toast.error("No puedes tener paquetes con el mismo nombre.");
+      setSaving(false);
+      return;
+    }
+
     try {
       const body = {
         adoptionPrice: local.costs.adoptCost,
@@ -856,8 +878,9 @@ function PricesTab() {
       setSettings(local);
       toast.success("Cambios guardados correctamente ✔");
     } catch {
-      toast.error("Error al guardar configuración.");
+      toast.error("Error al guardar configuración");
     }
+
     setSaving(false);
     setConfirmOpen(false);
   };
@@ -870,6 +893,7 @@ function PricesTab() {
       <CardHeader>
         <CardTitle className="text-green-900">Configuración de Precios</CardTitle>
       </CardHeader>
+
       <CardContent className="space-y-8">
 
         {/* COSTOS */}
@@ -879,7 +903,9 @@ function PricesTab() {
             <Input
               type="number"
               value={local.costs.adoptCost}
-              onChange={(e) => updateCost("adoptCost", Number(e.target.value))}
+              onChange={(e) =>
+                updateCost("adoptCost", Number(e.target.value))
+              }
             />
           </div>
           <div>
@@ -895,103 +921,126 @@ function PricesTab() {
         </div>
 
         {/* PAQUETES */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="font-semibold text-green-900">Paquetes de Créditos</h4>
-            <Button
-              onClick={addPackage}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              <Plus className="h-4 w-4 mr-2" /> Añadir Paquete
-            </Button>
-          </div>
+<div>
+  <div className="flex items-center justify-between mb-2">
+    <h4 className="font-semibold text-green-900">Paquetes de Créditos</h4>
+    <Button
+      onClick={addPackage}
+      className="bg-green-600 hover:bg-green-700 text-white"
+    >
+      + Añadir Paquete
+    </Button>
+  </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {local.packages.map((pkg) => (
-              <div key={pkg.id} className="border rounded-lg p-4 space-y-3 shadow-sm">
-                
-                <div className="flex justify-between items-center">
-                  <Label className="font-medium">{pkg.name}</Label>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => removePackage(pkg.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 text-sm">
-
-                  <div>
-                    <Label>Nombre</Label>
-                    <Input
-  value={pkg.name}
-  onChange={(e) => {
-  const value = e.target.value;
-  updatePackage(pkg.id, { name: value }); 
-}}
-
-/>
-
-
-                  
-                  </div>
-
-                  <div>
-                    <Label>ID</Label>
-                    <Input value={pkg.id} disabled />
-                  </div>
-
-                  <div>
-                    <Label>Créditos</Label>
-                    <Input
-                      type="number"
-                      value={pkg.credits}
-                      onChange={(e) =>
-                        updatePackage(pkg.id, { credits: Number(e.target.value) })
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Precio (Bs)</Label>
-                    <Input
-                      type="number"
-                      value={pkg.price}
-                      onChange={(e) =>
-                        updatePackage(pkg.id, { price: Number(e.target.value) })
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Bonus</Label>
-                    <Input
-                      type="number"
-                      value={pkg.bonus ?? 0}
-                      onChange={(e) =>
-                        updatePackage(pkg.id, { bonus: Number(e.target.value) })
-                      }
-                    />
-                  </div>
-
-                  <div className="col-span-2">
-                    <Label>Descripción</Label>
-                    <Input
-                      value={pkg.description || ""}
-                      onChange={(e) =>
-                        updatePackage(pkg.id, { description: e.target.value })
-                      }
-                    />
-                  </div>
-
-                </div>
-
-              </div>
-            ))}
-          </div>
+  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {local.packages.map((pkg) => (
+      <div
+        key={pkg.id}
+        className="border rounded-lg p-4 space-y-3 shadow-sm"
+      >
+        <div className="flex justify-between items-center">
+          <Label className="font-medium">{pkg.name}</Label>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => removePackage(pkg.id)}
+          >
+            Eliminar
+          </Button>
         </div>
+
+        <div className="grid grid-cols-2 gap-3 text-sm">
+
+          {/* === NOMBRE === */}
+          <div>
+            <Label>Nombre</Label>
+            <Input
+              value={pkg.name}
+              onChange={(e) => updatePackage(pkg.id, { name: e.target.value })}
+            />
+          </div>
+
+          {/* === ID (Bloqueado) === */}
+          <div>
+            <Label>ID</Label>
+            <Input value={pkg.id} disabled />
+          </div>
+
+          {/* === CRÉDITOS — PERMITE BORRAR === */}
+          <div>
+            <Label>Créditos</Label>
+            <Input
+              type="number"
+              value={pkg.credits === null ? "" : pkg.credits}
+              onChange={(e) => {
+                const v = e.target.value;
+
+                // Permite borrar el input
+                if (v === "") {
+                  updatePackage(pkg.id, { credits: null });
+                  return;
+                }
+
+                updatePackage(pkg.id, { credits: Number(v) });
+              }}
+            />
+          </div>
+
+          {/* === PRECIO — PERMITE BORRAR === */}
+          <div>
+            <Label>Precio (Bs)</Label>
+            <Input
+              type="number"
+              value={pkg.price === null ? "" : pkg.price}
+              onChange={(e) => {
+                const v = e.target.value;
+
+                if (v === "") {
+                  updatePackage(pkg.id, { price: null });
+                  return;
+                }
+
+                updatePackage(pkg.id, { price: Number(v) });
+              }}
+            />
+          </div>
+
+          {/* === BONUS — PERMITE BORRAR === */}
+          <div>
+            <Label>Bonus</Label>
+            <Input
+              type="number"
+              value={pkg.bonus === null ? "" : pkg.bonus}
+              onChange={(e) => {
+                const v = e.target.value;
+
+                if (v === "") {
+                  updatePackage(pkg.id, { bonus: null });
+                  return;
+                }
+
+                updatePackage(pkg.id, { bonus: Number(v) });
+              }}
+            />
+          </div>
+
+          {/* === DESCRIPCIÓN === */}
+          <div className="col-span-2">
+            <Label>Descripción</Label>
+            <Input
+              value={pkg.description || ""}
+              onChange={(e) =>
+                updatePackage(pkg.id, { description: e.target.value })
+              }
+            />
+          </div>
+
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+
 
         {/* BOTÓN GUARDAR */}
         <div className="flex gap-3">
@@ -1004,14 +1053,14 @@ function PricesTab() {
           </Button>
         </div>
 
-        {/* MODAL CONFIRM */}
+        {/* MODAL DE CONFIRMACIÓN */}
         <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
           <DialogContent className="p-6 space-y-4">
             <DialogHeader>
               <DialogTitle>¿Guardar cambios?</DialogTitle>
             </DialogHeader>
-            <p className="text-gray-600">
-              Estás a punto de modificar los precios y paquetes.  
+            <p>
+              Estás a punto de modificar los precios y paquetes.
               ¿Deseas continuar?
             </p>
             <div className="flex justify-end gap-3">
