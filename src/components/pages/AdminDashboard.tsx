@@ -426,17 +426,20 @@ function WateringTable({ wateringRequests, getStatusColor, getStatusText, onView
 
 <TableCell>
   <Button
-    size="sm"
-    disabled={paying[r._id]}
-    className={
-      r.pago === "pagado"
-        ? "bg-green-600 text-white"
-        : "bg-yellow-500 text-white"
-    }
-    onClick={() => onTogglePayment(r._id, r.pago)}
-  >
-    {r.pago === "pagado" ? "Pagado" : "Pendiente"}
-  </Button>
+  size="sm"
+  disabled={r.pago === "pagado" || paying[r._id]} 
+  className={
+    r.pago === "pagado"
+      ? "bg-green-600 text-white cursor-not-allowed opacity-70"
+      : "bg-yellow-500 text-white"
+  }
+  onClick={() => {
+    if (r.pago !== "pagado") onTogglePayment(r._id, r.pago);
+  }}
+>
+  {r.pago === "pagado" ? "Pagado" : "Pagar"}
+</Button>
+
 </TableCell>
 
               </TableRow>
