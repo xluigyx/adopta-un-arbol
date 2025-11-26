@@ -32,6 +32,12 @@ const pagoSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  pago: {
+  type: String,
+  enum: ["pendiente", "pagado"],
+  default: "pendiente"
+},
+
 });
 
 export default mongoose.model("Pago", pagoSchema);

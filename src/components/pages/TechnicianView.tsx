@@ -15,9 +15,9 @@ interface RiegoTask {
   requesterName: string;
   urgency: "low" | "medium" | "high";
   requestDate: string;
-  dueDate?: string;
   status: "assigned" | "in-progress" | "completed";
   treeImage?: string;
+  pago?: "pendiente" | "pagado";
 }
 
 interface RiegoCompleted {
@@ -34,7 +34,6 @@ interface RiegoCompleted {
   technicianName?: string;
   completedAt?: string;
   photoEvidence?: string;
-  // campos de reporte
   completionStatus?: string;
   waterAmount?: string | number;
   duration?: string | number;
@@ -42,6 +41,7 @@ interface RiegoCompleted {
   notes?: string;
   issues?: string;
   recommendations?: string;
+  pago?: "pendiente" | "pagado";
 }
 
 interface Technician {
@@ -63,11 +63,9 @@ export function TechnicianView({ user, onNavigate }: TechnicianViewProps) {
   const [selectedTask, setSelectedTask] = useState<RiegoTask | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // 🔥 Historial propio del técnico
   const [history, setHistory] = useState<RiegoCompleted[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
 
-  // 📥 Cargar solicitudes asignadas / pendientes
   const fetchTasks = async () => {
     try {
       const res = await fetch("http://localhost:4000/api/tecnico/pendientes");
@@ -83,48 +81,40 @@ export function TechnicianView({ user, onNavigate }: TechnicianViewProps) {
     }
   };
 
-  // 📥 Cargar historial del técnico (completados por este técnico)
-const fetchHistory = async () => {
-  try {
-    setLoadingHistory(true);
-    // 🔴 ahora pedimos al backend que filtre por técnico
-    const res = await fetch(
-      `http://localhost:4000/api/tecnico/completados?technicianId=${encodeURIComponent(
-        user._id
-      )}`
-    );
-    const data: RiegoCompleted[] = await res.json();
+  const fetchHistory = async () => {
+    try {
+      setLoadingHistory(true);
+      const res = await fetch(
+        `http://localhost:4000/api/tecnico/completados?technicianId=${encodeURIComponent(
+          user._id
+        )}`
+      );
+      const data = await res.json();
 
-    if (!res.ok) throw new Error("Error al obtener historial");
-    console.log("Historial (filtrado por backend):", data);
+      if (!res.ok) throw new Error("Error al obtener historial");
 
-    setHistory(Array.isArray(data) ? data : []);
-  } catch (error) {
-    console.error("❌ Error al cargar historial:", error);
-    toast.error("No se pudo cargar el historial de riegos");
-  } finally {
-    setLoadingHistory(false);
-  }
-};
-
+      setHistory(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("❌ Error al cargar historial:", error);
+      toast.error("No se pudo cargar el historial de riegos");
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   useEffect(() => {
     fetchTasks();
     fetchHistory();
 
-    // 🔁 Actualización automática de pendientes cada 10s
     const intervalTasks = setInterval(fetchTasks, 10000);
-    // 🔁 Actualización del historial cada 30s (opcional)
     const intervalHistory = setInterval(fetchHistory, 30000);
 
     return () => {
       clearInterval(intervalTasks);
       clearInterval(intervalHistory);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 🔧 Iniciar tarea (actualiza estado a in-progress)
   const handleStartTask = async (taskId: string) => {
     try {
       const res = await fetch(`http://localhost:4000/api/tecnico/${taskId}/estado`, {
@@ -148,15 +138,13 @@ const fetchHistory = async () => {
     }
   };
 
-  // ✅ Cuando el técnico completa el reporte
   const handleTaskCompleted = () => {
     toast.success("✅ Riego completado con éxito");
     setSelectedTask(null);
     fetchTasks();
-    fetchHistory(); // refrescar historial
+    fetchHistory();
   };
 
-  // 🔸 Colores de urgencia
   const getUrgencyColor = (urgency: string) => {
     switch (urgency) {
       case "high":
@@ -170,7 +158,6 @@ const fetchHistory = async () => {
     }
   };
 
-  // 🔸 Texto de urgencia
   const getUrgencyText = (urgency: string) => {
     switch (urgency) {
       case "high":
@@ -184,7 +171,6 @@ const fetchHistory = async () => {
     }
   };
 
-  // 🔸 Si selecciona una tarea, mostrar el formulario de reporte
   if (selectedTask) {
     return (
       <WateringReportForm
@@ -199,6 +185,7 @@ const fetchHistory = async () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-white py-12">
       <div className="max-w-6xl mx-auto px-4">
+
         {/* Encabezado */}
         <div className="text-center mb-10">
           <h1 className="text-4xl font-bold text-green-900 mb-2">Panel del Técnico 🌳</h1>
@@ -217,9 +204,8 @@ const fetchHistory = async () => {
             <TabsTrigger value="historial">📚 Historial</TabsTrigger>
           </TabsList>
 
-          {/* Pestaña: Asignadas */}
+          {/* ASIGNADAS */}
           <TabsContent value="asignadas">
-            {/* Estado de carga */}
             {loading ? (
               <div className="flex justify-center items-center py-20">
                 <Loader2 className="animate-spin text-green-700 h-8 w-8" />
@@ -246,7 +232,8 @@ const fetchHistory = async () => {
                     </CardHeader>
 
                     <CardContent>
-                      {/* 🌿 Imagen del árbol */}
+                      
+                      {/* Imagen */}
                       {task.treeImage ? (
                         <img
                           src={`http://localhost:4000/uploads/${task.treeImage}`}
@@ -259,20 +246,34 @@ const fetchHistory = async () => {
                         </div>
                       )}
 
-                      {/* 📍 Ubicación */}
+                      {/* Ubicación */}
                       <div className="flex items-center gap-2 text-gray-600 text-sm mb-2">
                         <MapPin className="h-4 w-4 text-green-600" />
                         <span>{task.location || "Ubicación no disponible"}</span>
                       </div>
 
-                      {/* 👤 Solicitante */}
+                      {/* 💰 PAGO — AÑADIDO */}
+                      <div className="flex items-center gap-2 text-sm mb-2">
+                        <span className="font-medium text-gray-700">Pago:</span>
+                        <span
+                          className={
+                            task.pago === "pagado"
+                              ? "px-2 py-1 rounded bg-green-200 text-green-800 text-xs font-semibold"
+                              : "px-2 py-1 rounded bg-red-200 text-red-800 text-xs font-semibold"
+                          }
+                        >
+                          {task.pago === "pagado" ? "Pagado" : "Pendiente"}
+                        </span>
+                      </div>
+
+                      {/* Solicitante */}
                       <div className="flex items-center gap-2 text-gray-600 text-sm mb-2">
                         <User2 className="h-4 w-4 text-green-600" />
                         <span>Solicitado por: </span>
                         <span className="font-medium text-green-800">{task.requesterName}</span>
                       </div>
 
-                      {/* 🕓 Fecha */}
+                      {/* Fecha */}
                       <div className="flex items-center gap-2 text-gray-500 text-sm mb-4">
                         <Clock className="h-4 w-4 text-green-500" />
                         <span>
@@ -284,7 +285,7 @@ const fetchHistory = async () => {
                         </span>
                       </div>
 
-                      {/* Botones de acción */}
+                      {/* Botones */}
                       <div className="flex gap-3">
                         {task.status === "assigned" && (
                           <Button
@@ -304,6 +305,7 @@ const fetchHistory = async () => {
                           </Button>
                         )}
                       </div>
+
                     </CardContent>
                   </Card>
                 ))}
@@ -311,7 +313,7 @@ const fetchHistory = async () => {
             )}
           </TabsContent>
 
-          {/* Pestaña: Historial */}
+          {/* HISTORIAL */}
           <TabsContent value="historial">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-green-900">Historial de riegos</h2>
@@ -333,6 +335,7 @@ const fetchHistory = async () => {
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {history.map((h) => (
                   <Card key={h._id} className="border rounded-xl overflow-hidden hover:shadow">
+
                     {/* Evidencia */}
                     <div className="aspect-video bg-gray-50 overflow-hidden">
                       {h.photoEvidence ? (
@@ -355,6 +358,22 @@ const fetchHistory = async () => {
                     </CardHeader>
 
                     <CardContent className="space-y-2 text-sm">
+
+                      {/* 💰 PAGO — AÑADIDO */}
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <span className="font-medium">Pago:</span>
+                        <span
+                          className={
+                            h.pago === "pagado"
+                              ? "px-2 py-1 rounded bg-green-200 text-green-800 text-xs font-semibold"
+                              : "px-2 py-1 rounded bg-red-200 text-red-800 text-xs font-semibold"
+                          }
+                        >
+                          {h.pago === "pagado" ? "Pagado" : "Pendiente"}
+                        </span>
+                      </div>
+
+                      {/* Fecha */}
                       <div className="flex items-center gap-2 text-gray-600">
                         <Clock className="h-4 w-4 text-green-600" />
                         <span>
@@ -370,6 +389,7 @@ const fetchHistory = async () => {
                         </span>
                       </div>
 
+                      {/* Ubicación */}
                       {h.location && (
                         <div className="flex items-center gap-2 text-gray-600">
                           <MapPin className="h-4 w-4 text-green-600" />
@@ -377,7 +397,7 @@ const fetchHistory = async () => {
                         </div>
                       )}
 
-                      {/* Resumen rápido del reporte */}
+                      {/* Resumen */}
                       <div className="grid grid-cols-2 gap-2">
                         <div className="bg-gray-50 p-2 rounded border">
                           <p className="text-gray-500">Agua</p>
@@ -400,11 +420,13 @@ const fetchHistory = async () => {
                         </div>
                       )}
                     </CardContent>
+
                   </Card>
                 ))}
               </div>
             )}
           </TabsContent>
+
         </Tabs>
       </div>
     </div>

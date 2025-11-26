@@ -110,7 +110,7 @@ interface AdminDashboardProps {
 }
 
 /* ====== helpers de pago local ====== */
-const PAGO_KEY = "riegoPago";
+/*const PAGO_KEY = "riegoPago";
 function readPagoMap(): Record<string, "pendiente" | "pagado"> {
   try {
     return JSON.parse(localStorage.getItem(PAGO_KEY) || "{}");
@@ -129,7 +129,7 @@ function setPagoState(id: string, value: "pendiente" | "pagado") {
   const map = readPagoMap();
   map[id] = value;
   writePagoMap(map);
-}
+}*/
 
 /* ======================== Principal ======================== */
 export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
@@ -154,8 +154,8 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
 
         const resWatering = await fetch("http://localhost:4000/api/tecnico/todos");
         const dataWatering: WateringRequest[] = await resWatering.json();
-        const withPago = dataWatering.map((w) => ({ ...w, pago: getPagoState(w._id) }));
-        setWateringRequests(withPago);
+        setWateringRequests(dataWatering);
+
       } catch (err) {
         console.error("❌ Error cargando datos del admin:", err);
       }
@@ -220,21 +220,33 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
   };
   
 
-  const toggleWateringPayment = (id: string, actual?: "pendiente" | "pagado") => {
-    const next = actual === "pagado" ? "pendiente" : "pagado";
-    setPaying((p) => ({ ...p, [id]: true }));
-    setPagoState(id, next);
-    setWateringRequests((prev) =>
-      prev.map((w) => (w._id === id ? { ...w, pago: next } : w))
-    );
-    setTimeout(() => {
-      setPaying((p) => {
-        const { [id]: _, ...rest } = p;
-        return rest;
-      });
-      toast.success(`Estado de pago actualizado a "${next}"`);
-    }, 300);
-  };
+  const toggleWateringPayment = async (id: string) => {
+  try {
+    setPaying(prev => ({ ...prev, [id]: true }));
+
+    const res = await fetch(`http://localhost:4000/api/tecnico/${id}/pago`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.msg || "Error al registrar pago");
+
+    toast.success("💰 Pago registrado correctamente");
+
+    // Recargar lista REAL desde Mongo
+    const resWatering = await fetch("http://localhost:4000/api/tecnico/todos");
+    const dataWatering = await resWatering.json();
+    setWateringRequests(dataWatering);
+
+  } catch (error) {
+    console.error(error);
+    toast.error("Error al registrar pago");
+  } finally {
+    setPaying(prev => ({ ...prev, [id]: false }));
+  }
+};
+
 
   const handlePaymentAction = async (id: string, action: string) => {
   const estado = action === "Aprobado" ? "Aprobado" : "Rechazado";
@@ -433,9 +445,8 @@ function WateringTable({ wateringRequests, getStatusColor, getStatusText, onView
       ? "bg-green-600 text-white cursor-not-allowed opacity-70"
       : "bg-yellow-500 text-white"
   }
-  onClick={() => {
-    if (r.pago !== "pagado") onTogglePayment(r._id, r.pago);
-  }}
+  onClick={() => onTogglePayment(r._id)}
+
 >
   {r.pago === "pagado" ? "Pagado" : "Pagar"}
 </Button>

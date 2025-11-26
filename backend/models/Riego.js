@@ -16,24 +16,30 @@ const RiegoSchema = new mongoose.Schema({
     default: "medium",
   },
   status: {
-    type: String,
-    enum: ["assigned", "in-progress", "completed"],
-    default: "assigned",
-  },
+  type: String,
+  enum: ["assigned", "in-progress", "completed"],
+  default: "assigned",
+},
 
-  // 🔔 nuevo campo para controlar si el usuario ya fue notificado
-  notificado: { type: Boolean, default: false },
+notificado: { type: Boolean, default: false },
 
-  // Reporte técnico
-  completionStatus: { type: String },
-  waterAmount: { type: String },
-  duration: { type: String },
-  treeCondition: { type: String },
-  notes: { type: String },
-  issues: { type: String },
-  recommendations: { type: String },
-  photoEvidence: { type: String },
-  completedAt: { type: Date },
+// 💸 pago del servicio de riego
+pago: {
+  type: String,
+  enum: ["pendiente", "pagado"],
+  default: "pendiente"
+},
+
+// Reporte técnico
+completionStatus: { type: String },
+waterAmount: { type: String },
+duration: { type: String },
+treeCondition: { type: String },
+notes: { type: String },
+issues: { type: String },
+recommendations: { type: String },
+photoEvidence: { type: String },
+completedAt: { type: Date },
 
   createdAt: { type: Date, default: Date.now },
 });

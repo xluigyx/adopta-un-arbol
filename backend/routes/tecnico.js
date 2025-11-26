@@ -121,6 +121,27 @@ router.put("/:id/estado", async (req, res) => {
     res.status(500).json({ msg: "Error al actualizar estado del riego" });
   }
 });
+/* ============================================================
+   💸 PUT - Marcar pago del riego (Admin)
+============================================================ */
+router.put("/:id/pago", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const riego = await Riego.findById(id);
+    if (!riego)
+      return res.status(404).json({ msg: "Solicitud de riego no encontrada" });
+
+    riego.pago = "pagado";  // MARCAR COMO PAGADO
+    await riego.save();
+
+    res.json({ msg: "💰 Pago registrado correctamente", riego });
+  } catch (error) {
+    console.error("❌ Error al registrar pago:", error);
+    res.status(500).json({ msg: "Error al registrar pago" });
+  }
+});
+
 
 /* ============================================================
    📸 POST - Enviar reporte final del riego (formulario técnico)
